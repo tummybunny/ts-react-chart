@@ -21,7 +21,11 @@ const calcFromseries1 = (
   isMax: Boolean,
   seed?: number | undefined
 ): number | undefined => {
-  let before = seed ? seed : (isMax ? Number.MIN_SAFE_INTEGER : Number.MAX_SAFE_INTEGER);
+  let before = seed
+    ? seed
+    : isMax
+    ? Number.MIN_SAFE_INTEGER
+    : Number.MAX_SAFE_INTEGER;
   arr.forEach((i) => {
     const v = getter(i);
     if (isMax) {
@@ -81,6 +85,18 @@ const series2: Series = {
   label: "banana",
 };
 
+const series3: Series = {
+  dataset: randomDataset(),
+  getValue: (p: Price): number => p.price,
+  getValueStr: (p: Price): string => `${p.price}`,
+  getPosition: (p: Price): number => p.date,
+  getPositionStr: (p: Price): string => `${p.date}`,
+  lineStyle: { stroke: "blue", strokeWidth: "2px" },
+  label: "apple",
+};
+
+const allSeries = [series1, series2, series3];
+
 function LineChart() {
   const ref = useRef<HTMLDivElement | null>(null);
   const [width, setWidth] = useState(0);
@@ -112,32 +128,44 @@ function LineChart() {
     return { minV, maxV, discretePointsAxisX, deltaX, deltaV, deltaY };
   }
 
-  const { minV, maxV, discretePointsAxisX, deltaX, deltaV, deltaY }  = calcLayout([series1, series2]);
+  const { minV, maxV, discretePointsAxisX, deltaX, deltaV, deltaY } =
+    calcLayout(allSeries);
 
-  console.log({ width, discretePointsAxisX, deltaX, maxV, minV, deltaV, deltaY });
+  console.log({
+    width,
+    discretePointsAxisX,
+    deltaX,
+    maxV,
+    minV,
+    deltaV,
+    deltaY,
+  });
 
-  const s1 = series1.dataset;
-  const arr =
+  const charts =
     width && deltaX && deltaY && deltaV && minV
-      ? Array.from(Array(discretePointsAxisX)).map((_, i) => {
-          const idx = discretePointsAxisX === s1.length ? i : ((s1.length / discretePointsAxisX) * i) | 0;
-          const p = s1[idx];
-          const pos = series1.getPosition(p);
-          const value = series1.getValue(p);
-          const r = {
-            x: left + idx * deltaX,
-            y: bottom - ((value - minV) / deltaV) * h,
-          };
-          //console.log(r);
-          return r;
+      ? allSeries.map((ser) => {
+          const ds = ser.dataset;
+          const plots = Array.from(Array(discretePointsAxisX)).map((_, i) => {
+            const idx =
+              discretePointsAxisX === ds.length
+                ? i
+                : ((ds.length / discretePointsAxisX) * i) | 0;
+            const p = ds[idx];
+            const pos = ser.getPosition(p);
+            const value = ser.getValue(p);
+            const r = {
+              x: left + idx * deltaX,
+              y: bottom - ((value - minV) / deltaV) * h,
+            };
+            return r;
+          });
+          return { series: ser, plots };
         })
       : undefined;
 
-  console.log(arr);
-
   return (
     <div ref={ref}>
-      {arr ? (
+      {charts && charts.length ? (
         <svg width={`${width}px`} height={`${height}px`}>
           <rect x={0} y={0} width={"100%"} height={"100%"} fill="black" />
           <line
@@ -154,17 +182,19 @@ function LineChart() {
             y2={bottom + 1}
             style={styleAxisX}
           ></line>
-          {arr.map((a, idx, arr) => {
-            return idx < arr.length - 1 ? (
-              <line
-                key={`lx_${idx}`}
-                x1={a.x}
-                y1={a.y}
-                x2={arr[idx + 1].x}
-                y2={arr[idx + 1].y}
-                style={{ stroke: "red", strokeWidth: "2px" }}
-              ></line>
-            ) : null;
+          {charts.map((ch) => {
+            return ch.plots.map((a, idx, plots) => {
+              return idx < plots.length - 1 ? (
+                <line
+                  key={`lx_${idx}`}
+                  x1={a.x}
+                  y1={a.y}
+                  x2={plots[idx + 1].x}
+                  y2={plots[idx + 1].y}
+                  style={ch.series.lineStyle}
+                ></line>
+              ) : null;
+            });
           })}
         </svg>
       ) : null}

@@ -23,5 +23,6 @@ dist-ssr
 *.sln
 *.sw?
 
+.vite/
 .eslintrc.cjs
 package-lock.json
