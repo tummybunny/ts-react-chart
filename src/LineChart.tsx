@@ -17,6 +17,7 @@ const minValueExtraPct: number | undefined = 10.0;
 type Axis = {
   style?: CSSProperties;
   textStyle?: CSSProperties;
+  showTextEvery?: 0 | 1 | 2 | 3 | 4 | 5,
   maxDiscretePoints?: number;
   grid?: boolean;
   gridStyle?: CSSProperties;
@@ -28,8 +29,9 @@ const axisX: Axis = {
   style: { stroke: "#808080", strokeWidth: "2px" },
   textStyle: {
     color: "white",
-    fontSize: "10px"
+    fontSize: "12px"
   },
+  showTextEvery: 0,
   grid: true,
   gridStyle: { stroke: "#303030", strokeWidth: "2px" },
   formatValue: (n: number) => round2dp(n).toString(),
@@ -40,8 +42,9 @@ const axisY: Axis = {
   style: { stroke: "#808080", strokeWidth: "2px" },
   textStyle: {
     color: "white",
-    fontSize: "10px"
+    fontSize: "12px"
   },
+  showTextEvery: 2,
   grid: true,
   gridStyle: { stroke: "#303030", strokeWidth: "2px" },
   formatValue: (n: number) => round2dp(n).toString(),
@@ -243,7 +246,7 @@ function LineChart() {
   const svgAxisBackY =
     shouldRender && deltaV ? (
       <>
-        {Array.from(Array(discretePointsAxisY)).map((_, i) => {
+        {Array.from(Array(discretePointsAxisY + 1)).map((_, i) => {
           const gap = deltaV / discretePointsAxisY;
           const pointY = (((gap * i) / deltaV) * h) | 0;
           return (
@@ -272,13 +275,13 @@ function LineChart() {
   const svgAxisFrontY =
     shouldRender && deltaV ? (
       <>
-        {Array.from(Array(discretePointsAxisY)).map((_, i) => {
+        {Array.from(Array(discretePointsAxisY + 1)).map((_, i) => {
           const gap = deltaV / discretePointsAxisY;
           const pointY = (((gap * i) / deltaV) * h) | 0;
-          const text = (
+          const text = axisY.showTextEvery && i % axisY.showTextEvery == 0 ? (
             <text
               key={`axisY_txt${i}`}
-              x={left + 10}
+              x={left + 5}
               y={bottom - pointY + 2}
               fontSize={axisY.textStyle?.fontSize || "unset"}
               fill={axisY.textStyle?.color || "unset"}
@@ -286,7 +289,7 @@ function LineChart() {
             >
               {axisY.formatValue(minV! + gap * i)}
             </text>
-          );
+          ) : null;
           return (
             <>
               <line
@@ -303,10 +306,10 @@ function LineChart() {
         })}
         <line
           key="axisY"
-          x1={left - 1}
-          y1={top + 1}
-          x2={left - 1}
-          y2={bottom + 1}
+          x1={left}
+          y1={top}
+          x2={left}
+          y2={bottom}
           style={axisY.style || {}}
         ></line>
       </>
@@ -348,7 +351,7 @@ function LineChart() {
       })}
       <line
         key="axisX"
-        x1={left - 1}
+        x1={left}
         y1={bottom}
         x2={right}
         y2={bottom}
