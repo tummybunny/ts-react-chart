@@ -88,24 +88,36 @@ type Series = {
   label?: string;
 };
 
+type EnrichedSeries = Series & { enrichedDataset: Series["dataset"]};
+  
+
 type Price = {
   date: number;
   price: number;
 };
 
-function randomDataset() {
+function dateToNumber(date: Date) {
+  return date.getDate() + (date.getMonth() + 1) * 100 + date.getFullYear() * 10000;
+}
+
+function randomenrichedDataset(startDt: number, inc: number) {
   // setup price / series1
   const prices: Price[] = [];
   let price = 50;
+  const yr = (startDt / 10000) | 0;
+  const month = ((startDt % 10000) / 100) | 0;
+  const day = startDt % 100;
+  const date = new Date(yr, month - 1, day);
   for (let i = 0; i < 50; i++) {
     price = round2dp(price + (Math.random() * 10 - 5));
-    prices.push({ date: 20240701 + i, price });
+    prices.push({ date: dateToNumber(date), price });
+    date.setDate(date.getDate() + inc);
   }
   return prices;
 }
 
 const series1: Series = {
-  dataset: randomDataset(),
+  dataset: randomenrichedDataset(20240701, 1),
   getValue: (p: Price): number => p.price,
   getValueStr: (p: Price): string => `${p.price}`,
   getPosition: (p: Price): number => p.date,
@@ -115,7 +127,7 @@ const series1: Series = {
 };
 
 const series2: Series = {
-  dataset: randomDataset(),
+  dataset: randomenrichedDataset(20240601, 3),
   getValue: (p: Price): number => p.price,
   getValueStr: (p: Price): string => `${p.price}`,
   getPosition: (p: Price): number => p.date,
@@ -125,7 +137,7 @@ const series2: Series = {
 };
 
 const series3: Series = {
-  dataset: randomDataset(),
+  dataset: randomenrichedDataset(20240501, 2),
   getValue: (p: Price): number => p.price,
   getValueStr: (p: Price): string => `${p.price}`,
   getPosition: (p: Price): number => p.date,
@@ -151,17 +163,15 @@ function LineChart() {
   const bottom = height - padV;
   const h = bottom - top;
 
-  function calcLayout(series: Series[]) {
+  function calcLayout(series: EnrichedSeries[]) {
     let maxV = maxValue;
     let minV = minValue;
     let discretePointsAxisX = axisX.maxDiscretePoints || maxDiscretePointsAxisX;
     series.forEach((s) => {
-      maxV = maxValue || calcFromseries1(s.dataset, s.getValue, true, maxV);
-      minV = minValue || calcFromseries1(s.dataset, s.getValue, false, minV);
-      discretePointsAxisX = Math.min(s.dataset.length, discretePointsAxisX);
+      maxV = maxValue || calcFromseries1(s.enrichedDataset, s.getValue, true, maxV);
+      minV = minValue || calcFromseries1(s.enrichedDataset, s.getValue, false, minV);
+      discretePointsAxisX = Math.min(s.enrichedDataset.length, discretePointsAxisX);
     });
-
-    console.log({ minV, maxV });
 
     let deltaV = maxV && minV ? maxV - minV : undefined;
 
@@ -194,6 +204,46 @@ function LineChart() {
     };
   }
 
+  function normalize(allSeries: Series[]): EnrichedSeries[] {
+    const ds = allSeries.map(s => s.dataset.slice());
+    const result: EnrichedSeries[] = allSeries.map(s => ({ ...s, enrichedDataset: [] }));
+    const dateMap = new Map<number, number>();
+    ds.forEach(d => d.forEach(p => dateMap.set(p.date, 1)));
+    const dates = Array.from(dateMap.keys()).sort();
+
+    ds.forEach((ser, idx) => {
+      dates.forEach((dt) => {
+        let loop = 0;
+        while(loop++ < 1000) {
+          let pop = ser.length ? ser[0] : undefined;
+          if (pop) {
+            if (pop.date === dt) {
+              result[idx].enrichedDataset.push(pop);
+              ser.shift();
+              break;
+            } else if (pop.date < dt) {
+              result[idx].enrichedDataset.push(pop);
+              ser.shift();
+            } else {
+              const clone = { ...pop, date: dt };
+              result[idx].enrichedDataset.push(clone);
+              break;
+            }
+          } else if (result[idx].enrichedDataset.length) {
+            let clone = result[idx].enrichedDataset[result[idx].enrichedDataset.length - 1];
+            clone = { ...clone, date: dt };
+            result[idx].enrichedDataset.push(clone);
+            break
+          } else break;
+        }
+      })
+    });
+
+    return result;
+  }
+
+  const normalizedSeries = normalize(allSeries);
+
   const {
     minV,
     maxV,
@@ -202,8 +252,9 @@ function LineChart() {
     discreteGapX,
     discreteGapY,
     deltaV,
-  } = calcLayout(allSeries);
+  } = calcLayout(normalizedSeries);
 
+  /*
   console.log({
     width,
     discretePointsAxisX,
@@ -213,11 +264,12 @@ function LineChart() {
     minV,
     deltaV,
   });
+  */
 
   const charts =
     width && discreteGapX && deltaV && minV
-      ? allSeries.map((ser) => {
-          const ds = ser.dataset;
+      ? normalizedSeries.map((ser) => {
+          const ds = ser.enrichedDataset;
           const plots = Array.from(Array(discretePointsAxisX)).map((_, i) => {
             const idx =
               discretePointsAxisX === ds.length
@@ -239,7 +291,7 @@ function LineChart() {
         })
       : undefined;
 
-  console.log(charts);
+  console.log({ charts: charts});
 
   const shouldRender = charts && charts.length;
   
@@ -369,6 +421,7 @@ function LineChart() {
           {svgAxisBackY}
           {charts.map((ch, chIdx) => {
             return ch.plots.map((a, idx, plots) => {
+              /*
               if (idx < plots.length - 1) {
                 console.log({
                   x1: a.x,
@@ -377,6 +430,7 @@ function LineChart() {
                   y2: plots[idx + 1].y,
                 });
               }
+              */  
               return idx < plots.length - 1 ? (
                 <line
                   key={`lx_${chIdx}_${idx}`}
