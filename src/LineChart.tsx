@@ -305,7 +305,7 @@ function LineChart() {
         })
       : undefined;
 
-  console.log({ charts: charts });
+  //console.log({ charts: charts });
 
   const shouldRender = charts && charts.length;
 
@@ -462,10 +462,37 @@ function LineChart() {
     </>
   ) : null;
 
+  const handlePoint = (x: number, y: number, pressed: Boolean) => {
+    console.log({ x, y, pressed });
+  };
+
   return (
     <div ref={ref}>
       {shouldRender ? (
-        <svg width={`${width}px`} height={`${height}px`}>
+        <svg
+          width={`${width}px`}
+          height={`${height}px`}
+          onTouchStart={(e) =>
+            e.changedTouches.length
+              ? handlePoint(
+                  e.changedTouches[0].clientX,
+                  e.changedTouches[0].clientY,
+                  true
+                )
+              : null
+          }
+          onTouchEnd={(e) =>
+            e.changedTouches.length
+              ? handlePoint(
+                  e.changedTouches[0].clientX,
+                  e.changedTouches[0].clientY,
+                  false
+                )
+              : null
+          }
+          onMouseDown={(e) => handlePoint(e.clientX, e.clientY, true)}
+          onMouseUp={(e) => handlePoint(e.clientX, e.clientY, false)}
+        >
           <rect x={0} y={0} width={"100%"} height={"100%"} fill="black" />
           {svgAxisBackX}
           {svgAxisBackY}
