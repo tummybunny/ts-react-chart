@@ -1,12 +1,12 @@
 import { CSSProperties, useEffect, useRef, useState } from "react";
 
-const padV = 10;
-const padH = 10;
+const marginTop = 15;
+const marginBottom = 30;
+const marginLeft = 40;
+const marginRight = 25;
 const height = 200;
 const maxDiscretePointsAxisX = 100;
 const maxDiscretePointsAxisY = 10;
-const maxValue: number | undefined = undefined;
-const minValue: number | undefined = undefined;
 
 // % added to max value in axis Y to avoid hitting ceiling
 const maxValueExtraPct: number | undefined = 10.0;
@@ -16,8 +16,10 @@ const minValueExtraPct: number | undefined = 10.0;
 
 type Axis = {
   style?: CSSProperties;
-  textStyle?: CSSProperties;
-  showTextEvery?: 0 | 1 | 2 | 3 | 4 | 5,
+  markings?: number;
+  markingPosX?: number;
+  markingPosY?: number;
+  markingTextStyle?: CSSProperties;
   maxDiscretePoints?: number;
   grid?: boolean;
   gridStyle?: CSSProperties;
@@ -27,24 +29,28 @@ type Axis = {
 const axisX: Axis = {
   maxDiscretePoints: 25,
   style: { stroke: "#808080", strokeWidth: "2px" },
-  textStyle: {
+  markings: 5,
+  markingPosX: -25,
+  markingPosY: 20,
+  markingTextStyle: {
     color: "white",
-    fontSize: "12px"
+    fontSize: "12px",
   },
-  showTextEvery: 0,
   grid: true,
   gridStyle: { stroke: "#303030", strokeWidth: "2px" },
-  formatValue: (n: number) => round2dp(n).toString(),
+  formatValue: (n: number) => n.toString(),
 };
 
 const axisY: Axis = {
   maxDiscretePoints: 10,
   style: { stroke: "#808080", strokeWidth: "2px" },
-  textStyle: {
+  markings: 5,
+  markingPosX: -35,
+  markingPosY: 5,
+  markingTextStyle: {
     color: "white",
-    fontSize: "12px"
+    fontSize: "12px",
   },
-  showTextEvery: 2,
   grid: true,
   gridStyle: { stroke: "#303030", strokeWidth: "2px" },
   formatValue: (n: number) => round2dp(n).toString(),
@@ -54,7 +60,7 @@ function round2dp(n: number) {
   return ((n * 100) | 0) / 100;
 }
 
-const calcFromseries1 = (
+const calcMinMax = (
   arr: Price[],
   getter: (p: Price) => number,
   isMax: Boolean,
@@ -87,17 +93,16 @@ type Series = {
   lineStyle?: CSSProperties;
   label?: string;
 };
-
-type EnrichedSeries = Series & { enrichedDataset: Series["dataset"]};
-  
-
+type EnrichedSeries = Series & { enrichedDataset: Series["dataset"] };
 type Price = {
   date: number;
   price: number;
 };
 
 function dateToNumber(date: Date) {
-  return date.getDate() + (date.getMonth() + 1) * 100 + date.getFullYear() * 10000;
+  return (
+    date.getDate() + (date.getMonth() + 1) * 100 + date.getFullYear() * 10000
+  );
 }
 
 function randomenrichedDataset(startDt: number, inc: number) {
@@ -156,21 +161,24 @@ function LineChart() {
     ref.current?.clientWidth && setWidth(ref.current?.clientWidth);
   }, []);
 
-  const left = padH;
-  const right = width - padH;
+  const left = marginLeft;
+  const right = width - marginRight;
   const w = right - left;
-  const top = padV;
-  const bottom = height - padV;
+  const top = marginTop;
+  const bottom = height - marginBottom;
   const h = bottom - top;
 
   function calcLayout(series: EnrichedSeries[]) {
-    let maxV = maxValue;
-    let minV = minValue;
+    let maxV: undefined | number = undefined;
+    let minV: undefined | number = undefined;
     let discretePointsAxisX = axisX.maxDiscretePoints || maxDiscretePointsAxisX;
     series.forEach((s) => {
-      maxV = maxValue || calcFromseries1(s.enrichedDataset, s.getValue, true, maxV);
-      minV = minValue || calcFromseries1(s.enrichedDataset, s.getValue, false, minV);
-      discretePointsAxisX = Math.min(s.enrichedDataset.length, discretePointsAxisX);
+      maxV = calcMinMax(s.enrichedDataset, s.getValue, true, maxV);
+      minV = calcMinMax(s.enrichedDataset, s.getValue, false, minV);
+      discretePointsAxisX = Math.min(
+        s.enrichedDataset.length,
+        discretePointsAxisX
+      );
     });
 
     let deltaV = maxV && minV ? maxV - minV : undefined;
@@ -205,16 +213,19 @@ function LineChart() {
   }
 
   function normalize(allSeries: Series[]): EnrichedSeries[] {
-    const ds = allSeries.map(s => s.dataset.slice());
-    const result: EnrichedSeries[] = allSeries.map(s => ({ ...s, enrichedDataset: [] }));
+    const ds = allSeries.map((s) => s.dataset.slice());
+    const result: EnrichedSeries[] = allSeries.map((s) => ({
+      ...s,
+      enrichedDataset: [],
+    }));
     const dateMap = new Map<number, number>();
-    ds.forEach(d => d.forEach(p => dateMap.set(p.date, 1)));
+    ds.forEach((d) => d.forEach((p) => dateMap.set(p.date, 1)));
     const dates = Array.from(dateMap.keys()).sort();
 
     ds.forEach((ser, idx) => {
       dates.forEach((dt) => {
         let loop = 0;
-        while(loop++ < 1000) {
+        while (loop++ < 1000) {
           let pop = ser.length ? ser[0] : undefined;
           if (pop) {
             if (pop.date === dt) {
@@ -230,13 +241,16 @@ function LineChart() {
               break;
             }
           } else if (result[idx].enrichedDataset.length) {
-            let clone = result[idx].enrichedDataset[result[idx].enrichedDataset.length - 1];
+            let clone =
+              result[idx].enrichedDataset[
+                result[idx].enrichedDataset.length - 1
+              ];
             clone = { ...clone, date: dt };
             result[idx].enrichedDataset.push(clone);
-            break
+            break;
           } else break;
         }
-      })
+      });
     });
 
     return result;
@@ -291,10 +305,10 @@ function LineChart() {
         })
       : undefined;
 
-  console.log({ charts: charts});
+  console.log({ charts: charts });
 
   const shouldRender = charts && charts.length;
-  
+
   const svgAxisBackY =
     shouldRender && deltaV ? (
       <>
@@ -324,20 +338,29 @@ function LineChart() {
       </>
     ) : null;
 
+  const markingDivisorAxisY =
+    axisY.markings && axisY.markings > 2
+      ? (discretePointsAxisY / (axisY.markings - 1)) | 0
+      : undefined;
   const svgAxisFrontY =
     shouldRender && deltaV ? (
       <>
         {Array.from(Array(discretePointsAxisY + 1)).map((_, i) => {
           const gap = deltaV / discretePointsAxisY;
           const pointY = (((gap * i) / deltaV) * h) | 0;
-          const text = axisY.showTextEvery && i % axisY.showTextEvery == 0 ? (
+          const showMarking =
+            i == 0 ||
+            i == discretePointsAxisY || // first and last
+            (markingDivisorAxisY && i % markingDivisorAxisY == 0);
+
+          const text = showMarking ? (
             <text
               key={`axisY_txt${i}`}
-              x={left + 5}
-              y={bottom - pointY + 2}
-              fontSize={axisY.textStyle?.fontSize || "unset"}
-              fill={axisY.textStyle?.color || "unset"}
-              fontWeight={axisY.textStyle?.fontWeight || "unset"}
+              x={left + (axisY.markingPosX || 0)}
+              y={bottom - pointY + (axisY.markingPosY || 0)}
+              fontSize={axisY.markingTextStyle?.fontSize || "unset"}
+              fill={axisY.markingTextStyle?.color || "unset"}
+              fontWeight={axisY.markingTextStyle?.fontWeight || "unset"}
             >
               {axisY.formatValue(minV! + gap * i)}
             </text>
@@ -388,18 +411,45 @@ function LineChart() {
     </>
   ) : null;
 
+  const markingDivisorAxisX =
+    axisX.markings && axisX.markings > 2
+      ? (discretePointsAxisX / (axisX.markings - 1)) | 0
+      : undefined;
   const svgAxisFrontX = shouldRender ? (
     <>
-      {Array.from(Array(discretePointsAxisX)).map((_, idx) => {
-        const pointX = (left + idx * discreteGapX) | 0;
-        return <line
-          key={`axisX_pt${idx}`}
-          x1={pointX}
-          y1={bottom - 3}
-          x2={pointX}
-          y2={bottom + 3}
-          style={axisX.style || {}}
-        ></line>
+      {Array.from(Array(discretePointsAxisX)).map((_, i) => {
+        const pointX = (left + i * discreteGapX) | 0;
+        const showMarking =
+          i == 0 ||
+          i == discretePointsAxisX || // first and last
+          (markingDivisorAxisX && i % markingDivisorAxisX == 0);
+
+        const text = showMarking ? (
+          <text
+            key={`axisX_txt${i}`}
+            x={pointX + (axisX.markingPosX || 0)}
+            y={bottom + (axisX.markingPosY || 0)}
+            fontSize={axisX.markingTextStyle?.fontSize || "unset"}
+            fill={axisX.markingTextStyle?.color || "unset"}
+            fontWeight={axisX.markingTextStyle?.fontWeight || "unset"}
+          >
+            {charts ? axisX.formatValue(charts[0].plots[i].pos) : "X"}
+          </text>
+        ) : null;
+
+        return (
+          <>
+            <line
+              key={`axisX_pt${i}`}
+              x1={pointX}
+              y1={bottom - 3}
+              x2={pointX}
+              y2={bottom + 3}
+              style={axisX.style || {}}
+            ></line>
+            {text}
+          </>
+        );
       })}
       <line
         key="axisX"
@@ -430,7 +480,7 @@ function LineChart() {
                   y2: plots[idx + 1].y,
                 });
               }
-              */  
+              */
               return idx < plots.length - 1 ? (
                 <line
                   key={`lx_${chIdx}_${idx}`}
