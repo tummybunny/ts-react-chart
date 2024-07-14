@@ -1,20 +1,20 @@
 import { CSSProperties, useEffect, useRef, useState } from "react";
 
-const marginTop = 15;
-const marginBottom = 30;
-const marginLeft = 40;
-const marginRight = 25;
-const height = 200;
 const maxDiscretePointsAxisX = 100;
 const maxDiscretePointsAxisY = 10;
 
-// % added to max value in axis Y to avoid hitting ceiling
-const maxValueExtraPct: number | undefined = 10.0;
+export type Price = {
+  x: number;
+  y: number;
+};
 
-// % added to max value in axis Y to avoid hitting bottom
-const minValueExtraPct: number | undefined = 10.0;
+export type Series<P extends Price = Price> = {
+  dataset: P[];
+  lineStyle?: CSSProperties;
+  label?: string;
+};
 
-type Axis = {
+export type Axis = {
   style?: CSSProperties;
   markings?: number;
   markingPosX?: number;
@@ -26,155 +26,91 @@ type Axis = {
   formatValue: (n: number) => string;
 };
 
-const axisX: Axis = {
-  maxDiscretePoints: 25,
-  style: { stroke: "#808080", strokeWidth: "2px" },
-  markings: 5,
-  markingPosX: -25,
-  markingPosY: 20,
-  markingTextStyle: {
-    color: "white",
-    fontSize: "12px",
-  },
-  grid: true,
-  gridStyle: { stroke: "#303030", strokeWidth: "2px" },
-  formatValue: (n: number) => n.toString(),
+export type LayoutProps<P extends Price = Price> = {
+  marginTop: number;
+  marginBottom: number;
+  marginLeft: number;
+  marginRight: number;
+  width?: number;
+  height: number;
+
+  // % added to max value in axis Y to avoid hitting ceiling
+  maxValueExtraPct: number | undefined;
+
+  // % added to max value in axis Y to avoid hitting bottom
+  minValueExtraPct: number | undefined;
+
+  axisX: Axis;
+  axisY: Axis;
+  allSeries: Series<P>[];
 };
 
-const axisY: Axis = {
-  maxDiscretePoints: 10,
-  style: { stroke: "#808080", strokeWidth: "2px" },
-  markings: 5,
-  markingPosX: -35,
-  markingPosY: 5,
-  markingTextStyle: {
-    color: "white",
-    fontSize: "12px",
-  },
-  grid: true,
-  gridStyle: { stroke: "#303030", strokeWidth: "2px" },
-  formatValue: (n: number) => round2dp(n).toString(),
-};
-
-function round2dp(n: number) {
-  return ((n * 100) | 0) / 100;
-}
-
-const calcMinMax = (
-  arr: Price[],
-  getter: (p: Price) => number,
+function calcMinMax<P extends Price>(
+  arr: P[],
   isMax: Boolean,
   seed?: number | undefined
-): number | undefined => {
+): number | undefined {
   let before = seed
     ? seed
     : isMax
     ? Number.MIN_SAFE_INTEGER
     : Number.MAX_SAFE_INTEGER;
   arr.forEach((i) => {
-    const v = getter(i);
+    const v = i.y;
     if (isMax) {
       if (before < v) before = v;
     } else {
       if (before > v) before = v;
     }
   });
-  return before == Number.MIN_SAFE_INTEGER || before == Number.MAX_SAFE_INTEGER
+  return before === Number.MIN_SAFE_INTEGER ||
+    before === Number.MAX_SAFE_INTEGER
     ? undefined
     : before;
-};
-
-type Series = {
-  dataset: Price[];
-  getValue: (p: Price) => number;
-  getValueStr: (p: Price) => string;
-  getPosition: (p: Price) => number;
-  getPositionStr: (p: Price) => string;
-  lineStyle?: CSSProperties;
-  label?: string;
-};
-type EnrichedSeries = Series & { enrichedDataset: Series["dataset"] };
-type Price = {
-  date: number;
-  price: number;
-};
-
-function dateToNumber(date: Date) {
-  return (
-    date.getDate() + (date.getMonth() + 1) * 100 + date.getFullYear() * 10000
-  );
 }
 
-function randomenrichedDataset(startDt: number, inc: number) {
-  // setup price / series1
-  const prices: Price[] = [];
-  let price = 50;
-  const yr = (startDt / 10000) | 0;
-  const month = ((startDt % 10000) / 100) | 0;
-  const day = startDt % 100;
-  const date = new Date(yr, month - 1, day);
-  for (let i = 0; i < 50; i++) {
-    price = round2dp(price + (Math.random() * 10 - 5));
-    prices.push({ date: dateToNumber(date), price });
-    date.setDate(date.getDate() + inc);
-  }
-  return prices;
-}
-
-const series1: Series = {
-  dataset: randomenrichedDataset(20240701, 1),
-  getValue: (p: Price): number => p.price,
-  getValueStr: (p: Price): string => `${p.price}`,
-  getPosition: (p: Price): number => p.date,
-  getPositionStr: (p: Price): string => `${p.date}`,
-  lineStyle: { stroke: "red", strokeWidth: "3px" },
-  label: "tomato",
+type EnrichedSeries<P extends Price> = Series<P> & {
+  enrichedDataset: Series<P>["dataset"];
 };
 
-const series2: Series = {
-  dataset: randomenrichedDataset(20240601, 3),
-  getValue: (p: Price): number => p.price,
-  getValueStr: (p: Price): string => `${p.price}`,
-  getPosition: (p: Price): number => p.date,
-  getPositionStr: (p: Price): string => `${p.date}`,
-  lineStyle: { stroke: "green", strokeWidth: "3px" },
-  label: "banana",
+type Plot = {
+  x: number;
+  y: number;
+  pos: number;
+  value: number;
+  idx: number;
+};
+type Hint<P extends Price> = {
+  ds: EnrichedSeries<P>;
+  plot: Plot;
 };
 
-const series3: Series = {
-  dataset: randomenrichedDataset(20240501, 2),
-  getValue: (p: Price): number => p.price,
-  getValueStr: (p: Price): string => `${p.price}`,
-  getPosition: (p: Price): number => p.date,
-  getPositionStr: (p: Price): string => `${p.date}`,
-  lineStyle: { stroke: "blue", strokeWidth: "3px" },
-  label: "apple",
-};
-
-const allSeries = [series1, series2, series3];
-
-function LineChart() {
+const LineChart = (props: LayoutProps) => {
   const ref = useRef<HTMLDivElement | null>(null);
-  const [width, setWidth] = useState(0);
+  const [width, setWidth] = useState(props.width || 100);
 
   useEffect(() => {
-    ref.current?.clientWidth && setWidth(ref.current?.clientWidth);
+    if (!props.width || props.width < 1) {
+      ref.current?.clientWidth && setWidth(ref.current?.clientWidth);
+    }
   }, []);
 
-  const left = marginLeft;
-  const right = width - marginRight;
+  const [hint, setHint] = useState<Hint<Price> | undefined>(undefined);
+  const left = props.marginLeft;
+  const right = width - props.marginRight;
   const w = right - left;
-  const top = marginTop;
-  const bottom = height - marginBottom;
+  const top = props.marginTop;
+  const bottom = props.height - props.marginBottom;
   const h = bottom - top;
 
-  function calcLayout(series: EnrichedSeries[]) {
+  function calcLayout<P extends Price>(series: EnrichedSeries<P>[]) {
     let maxV: undefined | number = undefined;
     let minV: undefined | number = undefined;
-    let discretePointsAxisX = axisX.maxDiscretePoints || maxDiscretePointsAxisX;
+    let discretePointsAxisX =
+      props.axisX.maxDiscretePoints || maxDiscretePointsAxisX;
     series.forEach((s) => {
-      maxV = calcMinMax(s.enrichedDataset, s.getValue, true, maxV);
-      minV = calcMinMax(s.enrichedDataset, s.getValue, false, minV);
+      maxV = calcMinMax(s.enrichedDataset, true, maxV);
+      minV = calcMinMax(s.enrichedDataset, false, minV);
       discretePointsAxisX = Math.min(
         s.enrichedDataset.length,
         discretePointsAxisX
@@ -184,12 +120,12 @@ function LineChart() {
     let deltaV = maxV && minV ? maxV - minV : undefined;
 
     minV =
-      deltaV && minValueExtraPct
-        ? minV! - (minValueExtraPct / 100) * deltaV
+      deltaV && props.minValueExtraPct
+        ? minV! - (props.minValueExtraPct / 100) * deltaV
         : minV;
     maxV =
-      deltaV && maxValueExtraPct
-        ? maxV! + (maxValueExtraPct / 100) * deltaV
+      deltaV && props.maxValueExtraPct
+        ? maxV! + (props.maxValueExtraPct / 100) * deltaV
         : maxV;
 
     deltaV = maxV && minV ? maxV - minV : undefined;
@@ -198,7 +134,7 @@ function LineChart() {
       ? w / (discretePointsAxisX - 1)
       : 0;
     const discretePointsAxisY =
-      axisY.maxDiscretePoints || maxDiscretePointsAxisY;
+      props.axisY.maxDiscretePoints || maxDiscretePointsAxisY;
     const discreteGapY = deltaV ? h / discretePointsAxisY : undefined;
 
     return {
@@ -212,14 +148,16 @@ function LineChart() {
     };
   }
 
-  function normalize(allSeries: Series[]): EnrichedSeries[] {
+  function normalize<P extends Price>(
+    allSeries: Series<P>[]
+  ): EnrichedSeries<P>[] {
     const ds = allSeries.map((s) => s.dataset.slice());
-    const result: EnrichedSeries[] = allSeries.map((s) => ({
+    const result: EnrichedSeries<P>[] = allSeries.map((s) => ({
       ...s,
       enrichedDataset: [],
     }));
     const dateMap = new Map<number, number>();
-    ds.forEach((d) => d.forEach((p) => dateMap.set(p.date, 1)));
+    ds.forEach((d) => d.forEach((p) => dateMap.set(p.x, 1)));
     const dates = Array.from(dateMap.keys()).sort();
 
     ds.forEach((ser, idx) => {
@@ -228,15 +166,15 @@ function LineChart() {
         while (loop++ < 1000) {
           let pop = ser.length ? ser[0] : undefined;
           if (pop) {
-            if (pop.date === dt) {
+            if (pop.x === dt) {
               result[idx].enrichedDataset.push(pop);
               ser.shift();
               break;
-            } else if (pop.date < dt) {
+            } else if (pop.x < dt) {
               result[idx].enrichedDataset.push(pop);
               ser.shift();
             } else {
-              const clone = { ...pop, date: dt };
+              const clone = { ...pop, x: dt };
               result[idx].enrichedDataset.push(clone);
               break;
             }
@@ -245,7 +183,7 @@ function LineChart() {
               result[idx].enrichedDataset[
                 result[idx].enrichedDataset.length - 1
               ];
-            clone = { ...clone, date: dt };
+            clone = { ...clone, x: dt };
             result[idx].enrichedDataset.push(clone);
             break;
           } else break;
@@ -256,7 +194,7 @@ function LineChart() {
     return result;
   }
 
-  const normalizedSeries = normalize(allSeries);
+  const normalizedSeries = normalize(props.allSeries);
 
   const {
     minV,
@@ -288,13 +226,13 @@ function LineChart() {
             const idx =
               discretePointsAxisX === ds.length
                 ? i
-                : ((ds.length / discretePointsAxisX) * i) | 0;
+                : Math.round((ds.length / discretePointsAxisX) * i);
             const p = ds[idx];
-            const pos = ser.getPosition(p); // TODO: not used
-            const value = ser.getValue(p);
-            const r = {
-              x: (left + i * discreteGapX) | 0,
-              y: (bottom - ((value - minV) / deltaV) * h) | 0,
+            const pos = p.x;
+            const value = p.y;
+            const r: Plot = {
+              x: Math.round(left + i * discreteGapX),
+              y: Math.round(bottom - ((value - minV) / deltaV) * h),
               pos,
               value,
               idx,
@@ -305,7 +243,7 @@ function LineChart() {
         })
       : undefined;
 
-  //console.log({ charts: charts });
+  console.log({ charts: charts });
 
   const shouldRender = charts && charts.length;
 
@@ -314,10 +252,10 @@ function LineChart() {
       <>
         {Array.from(Array(discretePointsAxisY + 1)).map((_, i) => {
           const gap = deltaV / discretePointsAxisY;
-          const pointY = (((gap * i) / deltaV) * h) | 0;
+          const pointY = Math.round(((gap * i) / deltaV) * h);
           return (
             <>
-              {axisY.grid ? (
+              {props.axisY.grid ? (
                 <line
                   key={`axisY_grid${i}`}
                   x1={left}
@@ -325,12 +263,12 @@ function LineChart() {
                   x2={right}
                   y2={bottom - pointY}
                   style={
-                    axisY.gridStyle || {
-                      ...axisY.style,
+                    props.axisY.gridStyle || {
+                      ...props.axisY.style,
                       filter: "opacity(20%)",
                     }
                   }
-                ></line>
+                />
               ) : null}
             </>
           );
@@ -339,30 +277,30 @@ function LineChart() {
     ) : null;
 
   const markingDivisorAxisY =
-    axisY.markings && axisY.markings > 2
-      ? (discretePointsAxisY / (axisY.markings - 1)) | 0
+    props.axisY.markings && props.axisY.markings > 2
+      ? Math.round(discretePointsAxisY / (props.axisY.markings - 1))
       : undefined;
   const svgAxisFrontY =
     shouldRender && deltaV ? (
       <>
         {Array.from(Array(discretePointsAxisY + 1)).map((_, i) => {
           const gap = deltaV / discretePointsAxisY;
-          const pointY = (((gap * i) / deltaV) * h) | 0;
+          const pointY = Math.round(((gap * i) / deltaV) * h);
           const showMarking =
-            i == 0 ||
-            i == discretePointsAxisY || // first and last
-            (markingDivisorAxisY && i % markingDivisorAxisY == 0);
+            i === 0 ||
+            i === discretePointsAxisY || // first and last
+            (markingDivisorAxisY && i % markingDivisorAxisY === 0);
 
           const text = showMarking ? (
             <text
               key={`axisY_txt${i}`}
-              x={left + (axisY.markingPosX || 0)}
-              y={bottom - pointY + (axisY.markingPosY || 0)}
-              fontSize={axisY.markingTextStyle?.fontSize || "unset"}
-              fill={axisY.markingTextStyle?.color || "unset"}
-              fontWeight={axisY.markingTextStyle?.fontWeight || "unset"}
+              x={left + (props.axisY.markingPosX || 0)}
+              y={bottom - pointY + (props.axisY.markingPosY || 0)}
+              fontSize={props.axisY.markingTextStyle?.fontSize || "unset"}
+              fill={props.axisY.markingTextStyle?.color || "unset"}
+              fontWeight={props.axisY.markingTextStyle?.fontWeight || "unset"}
             >
-              {axisY.formatValue(minV! + gap * i)}
+              {props.axisY.formatValue(minV! + gap * i)}
             </text>
           ) : null;
           return (
@@ -373,8 +311,8 @@ function LineChart() {
                 y1={bottom - pointY}
                 x2={left + 3}
                 y2={bottom - pointY}
-                style={axisY.style || {}}
-              ></line>
+                style={props.axisY.style || {}}
+              />
               {text}
             </>
           );
@@ -385,17 +323,17 @@ function LineChart() {
           y1={top}
           x2={left}
           y2={bottom}
-          style={axisY.style || {}}
-        ></line>
+          style={props.axisY.style || {}}
+        />
       </>
     ) : null;
 
   const svgAxisBackX = shouldRender ? (
     <>
       {Array.from(Array(discretePointsAxisX)).map((_, idx) => {
-        const pointX = (left + idx * discreteGapX) | 0;
+        const pointX = Math.round(left + idx * discreteGapX);
         // vertical lines
-        return axisX.grid ? (
+        return props.axisX.grid ? (
           <line
             key={`axisX_pt${idx}`}
             x1={pointX}
@@ -403,37 +341,40 @@ function LineChart() {
             x2={pointX}
             y2={top}
             style={
-              axisX.gridStyle || { ...axisX.style, filter: "opacity(20%)" }
+              props.axisX.gridStyle || {
+                ...props.axisX.style,
+                filter: "opacity(20%)",
+              }
             }
-          ></line>
+          />
         ) : null;
       })}
     </>
   ) : null;
 
   const markingDivisorAxisX =
-    axisX.markings && axisX.markings > 2
-      ? (discretePointsAxisX / (axisX.markings - 1)) | 0
+    props.axisX.markings && props.axisX.markings > 2
+      ? Math.round(discretePointsAxisX / (props.axisX.markings - 1))
       : undefined;
   const svgAxisFrontX = shouldRender ? (
     <>
       {Array.from(Array(discretePointsAxisX)).map((_, i) => {
-        const pointX = (left + i * discreteGapX) | 0;
+        const pointX = Math.round(left + i * discreteGapX);
         const showMarking =
-          i == 0 ||
-          i == discretePointsAxisX || // first and last
-          (markingDivisorAxisX && i % markingDivisorAxisX == 0);
+          i === 0 ||
+          i === discretePointsAxisX - 1 || // first and last
+          (markingDivisorAxisX && i % markingDivisorAxisX === 0);
 
         const text = showMarking ? (
           <text
             key={`axisX_txt${i}`}
-            x={pointX + (axisX.markingPosX || 0)}
-            y={bottom + (axisX.markingPosY || 0)}
-            fontSize={axisX.markingTextStyle?.fontSize || "unset"}
-            fill={axisX.markingTextStyle?.color || "unset"}
-            fontWeight={axisX.markingTextStyle?.fontWeight || "unset"}
+            x={pointX + (props.axisX.markingPosX || 0)}
+            y={bottom + (props.axisX.markingPosY || 0)}
+            fontSize={props.axisX.markingTextStyle?.fontSize || "unset"}
+            fill={props.axisX.markingTextStyle?.color || "unset"}
+            fontWeight={props.axisX.markingTextStyle?.fontWeight || "unset"}
           >
-            {charts ? axisX.formatValue(charts[0].plots[i].pos) : "X"}
+            {charts ? props.axisX.formatValue(charts[0].plots[i].pos) : "X"}
           </text>
         ) : null;
 
@@ -445,8 +386,8 @@ function LineChart() {
               y1={bottom - 3}
               x2={pointX}
               y2={bottom + 3}
-              style={axisX.style || {}}
-            ></line>
+              style={props.axisX.style || {}}
+            />
             {text}
           </>
         );
@@ -457,13 +398,21 @@ function LineChart() {
         y1={bottom}
         x2={right}
         y2={bottom}
-        style={axisX.style || {}}
-      ></line>
+        style={props.axisX.style || {}}
+      />
     </>
   ) : null;
 
-  const handlePoint = (x: number, y: number, pressed: Boolean) => {
-    console.log({ x, y, pressed });
+  const handlePoint = (x: number, y: number, pressed: Boolean, e: any) => {
+    console.log({ x, y, pressed, e });
+
+    if (pressed) {
+    }
+  };
+
+  const handlePlot = (ds: EnrichedSeries<Price>, plot: Plot) => {
+    setHint({ ds, plot });
+    console.log({ ds, plot });
   };
 
   return (
@@ -471,13 +420,14 @@ function LineChart() {
       {shouldRender ? (
         <svg
           width={`${width}px`}
-          height={`${height}px`}
+          height={`${props.height}px`}
           onTouchStart={(e) =>
             e.changedTouches.length
               ? handlePoint(
                   e.changedTouches[0].clientX,
                   e.changedTouches[0].clientY,
-                  true
+                  true,
+                  e
                 )
               : null
           }
@@ -486,12 +436,13 @@ function LineChart() {
               ? handlePoint(
                   e.changedTouches[0].clientX,
                   e.changedTouches[0].clientY,
-                  false
+                  false,
+                  e
                 )
               : null
           }
-          onMouseDown={(e) => handlePoint(e.clientX, e.clientY, true)}
-          onMouseUp={(e) => handlePoint(e.clientX, e.clientY, false)}
+          onMouseDown={(e) => handlePoint(e.clientX, e.clientY, true, e)}
+          onMouseUp={(e) => handlePoint(e.clientX, e.clientY, false, e)}
         >
           <rect x={0} y={0} width={"100%"} height={"100%"} fill="black" />
           {svgAxisBackX}
@@ -508,24 +459,76 @@ function LineChart() {
                 });
               }
               */
+              const dotStroke = ch.series.lineStyle?.stroke || "white";
               return idx < plots.length - 1 ? (
-                <line
-                  key={`lx_${chIdx}_${idx}`}
-                  x1={a.x}
-                  y1={a.y}
-                  x2={plots[idx + 1].x}
-                  y2={plots[idx + 1].y}
-                  style={ch.series.lineStyle}
-                ></line>
+                <>
+                  <line
+                    key={`lx_${chIdx}_${idx}`}
+                    x1={a.x}
+                    y1={a.y}
+                    x2={plots[idx + 1].x}
+                    y2={plots[idx + 1].y}
+                    style={ch.series.lineStyle}
+                  />
+                  <circle
+                    cx={a.x}
+                    cy={a.y}
+                    r={3}
+                    stroke={dotStroke}
+                    strokeWidth={2}
+                    fill="black"
+                    onTouchEnd={(e) => handlePlot(charts[chIdx].series, a)}
+                    onClick={(e) => handlePlot(charts[chIdx].series, a)}
+                  />
+                  {idx == plots.length - 2 ? (
+                    <circle
+                      cx={plots[idx + 1].x}
+                      cy={plots[idx + 1].y}
+                      r={3}
+                      stroke={dotStroke}
+                      strokeWidth={2}
+                      fill="black"
+                      onTouchEnd={(e) =>
+                        handlePlot(charts[chIdx].series, plots[idx + 1])
+                      }
+                      onClick={(e) =>
+                        handlePlot(charts[chIdx].series, plots[idx + 1])
+                      }
+                    />
+                  ) : null}
+                </>
               ) : null;
             });
           })}
+          {hint ? (
+            <>
+              <circle
+                cx={hint.plot.x}
+                cy={hint.plot.y}
+                r={5}
+                stroke={hint.ds.lineStyle?.stroke || "white"}
+                strokeWidth={1}
+                fill="white"
+              />
+              <text
+                key="hint"
+                x={left + 10}
+                y={top + 10}
+                fill="white"
+                fontWeight="unset"
+              >
+                {`${hint.ds.label || ""}`}{" "}
+                {props.axisX.formatValue(hint.plot.pos)}{" "}
+                {props.axisY.formatValue(hint.plot.value)}
+              </text>
+            </>
+          ) : null}
           {svgAxisFrontX}
           {svgAxisFrontY}
         </svg>
       ) : null}
     </div>
   );
-}
+};
 
 export default LineChart;
