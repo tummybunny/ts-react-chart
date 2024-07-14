@@ -1,4 +1,4 @@
-import LineChart, { Axis, Price, Series } from "./LineChart";
+import LineChart, { Axis, DataXY, Series } from "./LineChart";
 
 function round2dp(n: number) {
   return ((n * 100) | 0) / 100;
@@ -19,7 +19,7 @@ function numberToDate(num: number) {
 
 function randomDataset(startDt: number, inc: number) {
   // setup price / series1
-  const prices: Price[] = [];
+  const prices: DataXY[] = [];
   let price = 50;
   const date = numberToDate(startDt);
   for (let i = 0; i < 50; i++) {

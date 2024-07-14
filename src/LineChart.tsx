@@ -3,12 +3,13 @@ import { CSSProperties, useEffect, useRef, useState } from "react";
 const maxDiscretePointsAxisX = 100;
 const maxDiscretePointsAxisY = 10;
 
-export type Price = {
+export type DataXY = {
+  id?: string;
   x: number;
   y: number;
 };
 
-export type Series<P extends Price = Price> = {
+export type Series<P extends DataXY = DataXY> = {
   id: string,
   dataset: P[];
   lineStyle?: CSSProperties;
@@ -27,9 +28,9 @@ export type Axis = {
   formatValue: (n: number) => string;
 };
 
-export type OnPriceSelected<P extends Price = Price> = (id: string, price: P) => void;
+export type OnPriceSelected<P extends DataXY = DataXY> = (id: string, price: P) => void;
 
-export type LayoutProps<P extends Price = Price> = {
+export type LayoutProps<P extends DataXY = DataXY> = {
   marginTop: number;
   marginBottom: number;
   marginLeft: number;
@@ -50,7 +51,7 @@ export type LayoutProps<P extends Price = Price> = {
   onPriceSelected?: OnPriceSelected<P>;
 };
 
-function calcMinMax<P extends Price>(
+function calcMinMax<P extends DataXY>(
   arr: P[],
   isMax: Boolean,
   seed?: number | undefined
@@ -74,17 +75,17 @@ function calcMinMax<P extends Price>(
     : before;
 }
 
-type EnrichedSeries<P extends Price> = Series<P> & {
+type EnrichedSeries<P extends DataXY> = Series<P> & {
   enrichedDataset: Series<P>["dataset"];
 };
 
-type Plot<P extends Price> = {
+type Plot<P extends DataXY> = {
   x: number;
   y: number;
   price: P;
   idx: number;
 };
-type Hint<P extends Price> = {
+type Hint<P extends DataXY> = {
   ds: EnrichedSeries<P>;
   plot: Plot<P>;
 };
@@ -99,7 +100,7 @@ const LineChart = (props: LayoutProps) => {
     }
   }, []);
 
-  const [hint, setHint] = useState<Hint<Price> | undefined>(undefined);
+  const [hint, setHint] = useState<Hint<DataXY> | undefined>(undefined);
   const left = props.marginLeft;
   const right = width - props.marginRight;
   const w = right - left;
@@ -107,7 +108,7 @@ const LineChart = (props: LayoutProps) => {
   const bottom = props.height - props.marginBottom;
   const h = bottom - top;
 
-  function calcLayout<P extends Price>(series: EnrichedSeries<P>[]) {
+  function calcLayout<P extends DataXY>(series: EnrichedSeries<P>[]) {
     let maxV: undefined | number = undefined;
     let minV: undefined | number = undefined;
     let discretePointsAxisX =
@@ -152,7 +153,13 @@ const LineChart = (props: LayoutProps) => {
     };
   }
 
-  function normalize<P extends Price>(
+  /**
+   * Normalize series to have the same length of datasets that share the
+   * same population of X axis.
+   * @param allSeries
+   * @returns 
+   */
+  function normalize<P extends DataXY>(
     allSeries: Series<P>[]
   ): EnrichedSeries<P>[] {
     const ds = allSeries.map((s) => s.dataset.slice());
@@ -160,25 +167,25 @@ const LineChart = (props: LayoutProps) => {
       ...s,
       enrichedDataset: [],
     }));
-    const dateMap = new Map<number, number>();
-    ds.forEach((d) => d.forEach((p) => dateMap.set(p.x, 1)));
-    const dates = Array.from(dateMap.keys()).sort();
+    const uniqueXes = new Map<number, number>();
+    ds.forEach((d) => d.forEach((p) => uniqueXes.set(p.x, 1)));
+    const xes = Array.from(uniqueXes.keys()).sort();
 
     ds.forEach((ser, idx) => {
-      dates.forEach((dt) => {
+      xes.forEach(x => {
         let loop = 0;
         while (loop++ < 1000) {
           let pop = ser.length ? ser[0] : undefined;
           if (pop) {
-            if (pop.x === dt) {
+            if (pop.x === x) {
               result[idx].enrichedDataset.push(pop);
               ser.shift();
               break;
-            } else if (pop.x < dt) {
+            } else if (pop.x < x) {
               result[idx].enrichedDataset.push(pop);
               ser.shift();
             } else {
-              const clone = { ...pop, x: dt };
+              const clone = { ...pop, x };
               result[idx].enrichedDataset.push(clone);
               break;
             }
@@ -187,7 +194,7 @@ const LineChart = (props: LayoutProps) => {
               result[idx].enrichedDataset[
                 result[idx].enrichedDataset.length - 1
               ];
-            clone = { ...clone, x: dt };
+            clone = { ...clone, x };
             result[idx].enrichedDataset.push(clone);
             break;
           } else break;
@@ -234,7 +241,7 @@ const LineChart = (props: LayoutProps) => {
             const p = ds[idx];
             const pos = p.x;
             const value = p.y;
-            const r: Plot<Price> = {
+            const r: Plot<DataXY> = {
               x: Math.round(left + i * discreteGapX),
               y: Math.round(bottom - ((value - minV) / deltaV) * h),
               price: p,
@@ -414,7 +421,7 @@ const LineChart = (props: LayoutProps) => {
     }
   };
 
-  const handlePlot = <P extends Price>(ds: EnrichedSeries<P>, plot: Plot<P>) => {
+  const handlePlot = <P extends DataXY>(ds: EnrichedSeries<P>, plot: Plot<P>) => {
     (props.showHintOnPriceSelected == undefined || props.showHintOnPriceSelected) && setHint({ ds, plot });
     props.onPriceSelected && props.onPriceSelected(ds.id, plot.price);
   };
@@ -475,6 +482,7 @@ const LineChart = (props: LayoutProps) => {
                     style={ch.series.lineStyle}
                   />
                   <circle
+                    key={`plot_${chIdx}_${a.x}_${a.y}`}
                     cx={a.x}
                     cy={a.y}
                     r={3}
@@ -486,6 +494,7 @@ const LineChart = (props: LayoutProps) => {
                   />
                   {idx == plots.length - 2 ? (
                     <circle
+                      key={`plot_${chIdx}_last`}
                       cx={plots[idx + 1].x}
                       cy={plots[idx + 1].y}
                       r={3}
@@ -507,6 +516,7 @@ const LineChart = (props: LayoutProps) => {
           {hint ? (
             <>
               <circle
+                key={`hint_circle`}
                 cx={hint.plot.x}
                 cy={hint.plot.y}
                 r={5}
@@ -515,7 +525,7 @@ const LineChart = (props: LayoutProps) => {
                 fill="white"
               />
               <text
-                key="hint"
+                key="hint_text"
                 x={left + 10}
                 y={top + 10}
                 fill="white"
