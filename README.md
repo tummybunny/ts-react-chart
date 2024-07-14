@@ -5,6 +5,9 @@ Simple chart react component created for my home-grown application that fits to 
 It is work in progress...
 
 Example:
+
+![basic minesweeper]([https://github.com/tummybunny/ts-minesweeper/blob/main/public/screenshot.jpg](https://github.com/tummybunny/ts-react-chart/blob/master/public/example.jpg))
+
 ```
 import LineChart, { Axis, Price, Series } from "./LineChart";
 
