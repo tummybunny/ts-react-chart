@@ -35,7 +35,7 @@ function formatDate(d: Date) {
 }
 
 const series1: Series = {
-  //dataset: randomenrichedDataset(20240701, 1),
+  //dataset: randomDataset(20240701, 1),
   dataset: [
     { x: 20240601, y: 5 },
     { x: 20240602, y: 5.25 },
@@ -55,7 +55,7 @@ const series1: Series = {
 };
 
 const series2: Series = {
-  //dataset: randomenrichedDataset(20240601, 3),
+  //dataset: randomDataset(20240601, 3),
   dataset: [
     { x: 20240601, y: 6.8 },
     { x: 20240603, y: 7.3 },
@@ -75,7 +75,7 @@ const series2: Series = {
 };
 
 const series3: Series = {
-  //dataset: randomenrichedDataset(20240501, 2),
+  //dataset: randomDataset(20240501, 2),
   dataset: [
     { x: 20240602, y: 4.5 },
     { x: 20240603, y: 5.1 },

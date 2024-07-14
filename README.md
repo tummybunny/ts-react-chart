@@ -127,6 +127,7 @@ const Example = () => {
       axisX={axisX}
       axisY={axisY}
       allSeries={allSeries}
+      onPriceSelected={(id, price) => console.log({id, price})}
     ></LineChart>
   );
 };
