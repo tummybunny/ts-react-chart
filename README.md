@@ -6,7 +6,7 @@ It is work in progress...
 
 Example:
 
-![basic minesweeper](https://github.com/tummybunny/ts-react-chart/blob/master/public/example.jpg))
+![basic minesweeper](https://github.com/tummybunny/ts-react-chart/blob/master/public/example.jpg)
 
 ```
 import LineChart, { Axis, Price, Series } from "./LineChart";
