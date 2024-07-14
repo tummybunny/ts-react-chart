@@ -51,6 +51,7 @@ const series1: Series = {
   ],
   lineStyle: { stroke: "red", strokeWidth: "3px" },
   label: "tomato",
+  id: "tomato"
 };
 
 const series2: Series = {
@@ -70,6 +71,7 @@ const series2: Series = {
   ],
   lineStyle: { stroke: "green", strokeWidth: "3px" },
   label: "banana",
+  id: "banana"
 };
 
 const series3: Series = {
@@ -91,6 +93,7 @@ const series3: Series = {
   ],
   lineStyle: { stroke: "blue", strokeWidth: "3px" },
   label: "apple",
+  id: "apple"
 };
 
 const allSeries = [series1, series2, series3];
@@ -138,6 +141,7 @@ const Example = () => {
       axisX={axisX}
       axisY={axisY}
       allSeries={allSeries}
+      onPriceSelected={(id, price) => console.log({id, price})}
     ></LineChart>
   );
 };

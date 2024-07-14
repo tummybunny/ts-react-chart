@@ -9,6 +9,7 @@ export type Price = {
 };
 
 export type Series<P extends Price = Price> = {
+  id: string,
   dataset: P[];
   lineStyle?: CSSProperties;
   label?: string;
@@ -25,6 +26,8 @@ export type Axis = {
   gridStyle?: CSSProperties;
   formatValue: (n: number) => string;
 };
+
+export type OnPriceSelected<P extends Price = Price> = (id: string, price: P) => void;
 
 export type LayoutProps<P extends Price = Price> = {
   marginTop: number;
@@ -43,6 +46,8 @@ export type LayoutProps<P extends Price = Price> = {
   axisX: Axis;
   axisY: Axis;
   allSeries: Series<P>[];
+  showHintOnPriceSelected?: Boolean;
+  onPriceSelected?: OnPriceSelected<P>;
 };
 
 function calcMinMax<P extends Price>(
@@ -73,16 +78,15 @@ type EnrichedSeries<P extends Price> = Series<P> & {
   enrichedDataset: Series<P>["dataset"];
 };
 
-type Plot = {
+type Plot<P extends Price> = {
   x: number;
   y: number;
-  pos: number;
-  value: number;
+  price: P;
   idx: number;
 };
 type Hint<P extends Price> = {
   ds: EnrichedSeries<P>;
-  plot: Plot;
+  plot: Plot<P>;
 };
 
 const LineChart = (props: LayoutProps) => {
@@ -230,11 +234,10 @@ const LineChart = (props: LayoutProps) => {
             const p = ds[idx];
             const pos = p.x;
             const value = p.y;
-            const r: Plot = {
+            const r: Plot<Price> = {
               x: Math.round(left + i * discreteGapX),
               y: Math.round(bottom - ((value - minV) / deltaV) * h),
-              pos,
-              value,
+              price: p,
               idx,
             };
             return r;
@@ -243,7 +246,7 @@ const LineChart = (props: LayoutProps) => {
         })
       : undefined;
 
-  console.log({ charts: charts });
+  //console.log({ charts: charts });
 
   const shouldRender = charts && charts.length;
 
@@ -374,7 +377,7 @@ const LineChart = (props: LayoutProps) => {
             fill={props.axisX.markingTextStyle?.color || "unset"}
             fontWeight={props.axisX.markingTextStyle?.fontWeight || "unset"}
           >
-            {charts ? props.axisX.formatValue(charts[0].plots[i].pos) : "X"}
+            {charts ? props.axisX.formatValue(charts[0].plots[i].price.y) : "X"}
           </text>
         ) : null;
 
@@ -404,15 +407,16 @@ const LineChart = (props: LayoutProps) => {
   ) : null;
 
   const handlePoint = (x: number, y: number, pressed: Boolean, e: any) => {
-    console.log({ x, y, pressed, e });
+    //console.log({ x, y, pressed, e });
 
     if (pressed) {
+      // TODO: calculate price?
     }
   };
 
-  const handlePlot = (ds: EnrichedSeries<Price>, plot: Plot) => {
-    setHint({ ds, plot });
-    console.log({ ds, plot });
+  const handlePlot = <P extends Price>(ds: EnrichedSeries<P>, plot: Plot<P>) => {
+    (props.showHintOnPriceSelected == undefined || props.showHintOnPriceSelected) && setHint({ ds, plot });
+    props.onPriceSelected && props.onPriceSelected(ds.id, plot.price);
   };
 
   return (
@@ -518,8 +522,8 @@ const LineChart = (props: LayoutProps) => {
                 fontWeight="unset"
               >
                 {`${hint.ds.label || ""}`}{" "}
-                {props.axisX.formatValue(hint.plot.pos)}{" "}
-                {props.axisY.formatValue(hint.plot.value)}
+                {props.axisX.formatValue(hint.plot.price.x)}{" "}
+                {props.axisY.formatValue(hint.plot.price.y)}
               </text>
             </>
           ) : null}
