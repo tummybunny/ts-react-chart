@@ -1,4 +1,3 @@
-import { CSSProperties, useEffect, useRef, useState } from "react";
 import LineChart, { Axis, Price, Series } from "./LineChart";
 
 function round2dp(n: number) {
@@ -104,7 +103,7 @@ const axisX: Axis = {
   markingPosY: 20,
   markingTextStyle: {
     color: "white",
-    fontSize: "12px",
+    fontSize: "12px"
   },
   grid: true,
   gridStyle: { stroke: "#303030", strokeWidth: "2px" },
@@ -119,7 +118,7 @@ const axisY: Axis = {
   markingPosY: 5,
   markingTextStyle: {
     color: "white",
-    fontSize: "12px",
+    fontSize: "12px"
   },
   grid: true,
   gridStyle: { stroke: "#303030", strokeWidth: "2px" },
