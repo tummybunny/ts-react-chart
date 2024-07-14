@@ -1,35 +1,70 @@
 import { CSSProperties, useEffect, useRef, useState } from "react";
 
-const maxDiscretePointsAxisX = 100;
-const maxDiscretePointsAxisY = 10;
+const maxDiscretePointsAxisX = 255;
+const maxDiscretePointsAxisY = 255;
 
+/**
+ * Simple data point denoted by id, at X with value Y.
+ */
 export type DataXY = {
   id?: string;
   x: number;
   y: number;
 };
 
+/**
+ * Represent a dataset with an id and label
+ */
 export type Series<P extends DataXY = DataXY> = {
-  id: string,
+  id: string;
   dataset: P[];
   lineStyle?: CSSProperties;
   label?: string;
 };
 
+/**
+ * Represent X or Y axis
+ */
 export type Axis = {
+  /** CSS style for the horizontal or vertical line representing this axis */
   style?: CSSProperties;
+
+  /** Ideal number of marking texts along the axis */
   markings?: number;
+
+  /** Adjuster of X of the location where marking is displayed on the axis */
   markingPosX?: number;
+
+  /** Adjuster of Y of the location where marking is displayed on the axis */
   markingPosY?: number;
+
+  /** CSS style of marking text */
   markingTextStyle?: CSSProperties;
+
+  /** Ideal number of dicrete minor markings (without text) along the axis */
   maxDiscretePoints?: number;
+
+  /** Whther or not to show horizontal or vertical line perpendicular to this axis at each discrete point */
   grid?: boolean;
+
+  /** CSS style for the grid */
   gridStyle?: CSSProperties;
+
+  /** Formatter of x or y value of DataXY corresponding to this axis */
   formatValue: (n: number) => string;
 };
 
-export type OnPriceSelected<P extends DataXY = DataXY> = (id: string, price: P) => void;
+/**
+ * Callback when a DataXY is selected on the chart
+ */
+export type OnDataXYSelected<P extends DataXY = DataXY> = (
+  seriesId: string,
+  price: P
+) => void;
 
+/**
+ * Props to LineChart
+ */
 export type LayoutProps<P extends DataXY = DataXY> = {
   marginTop: number;
   marginBottom: number;
@@ -48,7 +83,9 @@ export type LayoutProps<P extends DataXY = DataXY> = {
   axisY: Axis;
   allSeries: Series<P>[];
   showHintOnPriceSelected?: Boolean;
-  onPriceSelected?: OnPriceSelected<P>;
+  hintLeft?: number;
+  hintTop?: number;
+  onDataXYSelected?: OnDataXYSelected<P>;
 };
 
 function calcMinMax<P extends DataXY>(
@@ -75,21 +112,133 @@ function calcMinMax<P extends DataXY>(
     : before;
 }
 
+/** Internal */
 type EnrichedSeries<P extends DataXY> = Series<P> & {
-  enrichedDataset: Series<P>["dataset"];
+  normalizedDataset: Series<P>["dataset"];
 };
 
+/** Internal */
 type Plot<P extends DataXY> = {
   x: number;
   y: number;
   price: P;
   idx: number;
 };
+
+/** Internal */
 type Hint<P extends DataXY> = {
   ds: EnrichedSeries<P>;
   plot: Plot<P>;
 };
 
+/**
+ * Internal - Normalize series to have the same length of datasets that share the
+ * same population of X axis.
+ */
+function normalize<P extends DataXY>(
+  allSeries: Series<P>[]
+): EnrichedSeries<P>[] {
+  const ds = allSeries.map((s) => s.dataset.slice());
+  const result: EnrichedSeries<P>[] = allSeries.map((s) => ({
+    ...s,
+    normalizedDataset: [],
+  }));
+  const uniqueXes = new Map<number, number>();
+  ds.forEach((d) => d.forEach((p) => uniqueXes.set(p.x, 1)));
+  const xes = Array.from(uniqueXes.keys()).sort();
+
+  ds.forEach((ser, idx) => {
+    xes.forEach((x) => {
+      let loop = 0;
+      while (loop++ < 1000) {
+        let pop = ser.length ? ser[0] : undefined;
+        if (pop) {
+          if (pop.x === x) {
+            result[idx].normalizedDataset.push(pop);
+            ser.shift();
+            break;
+          } else if (pop.x < x) {
+            result[idx].normalizedDataset.push(pop);
+            ser.shift();
+          } else {
+            const clone = { ...pop, x };
+            result[idx].normalizedDataset.push(clone);
+            break;
+          }
+        } else if (result[idx].normalizedDataset.length) {
+          let clone =
+            result[idx].normalizedDataset[
+              result[idx].normalizedDataset.length - 1
+            ];
+          clone = { ...clone, x };
+          result[idx].normalizedDataset.push(clone);
+          break;
+        } else break;
+      }
+    });
+  });
+
+  return result;
+}
+
+/**
+ * Internal - Calculate layout information used to draw the chart
+ */
+function calcLayout<P extends DataXY>(
+  series: EnrichedSeries<P>[],
+  props: LayoutProps<P>,
+  chartWidth: number,
+  chartHeight: number
+) {
+  let maxV: undefined | number = undefined;
+  let minV: undefined | number = undefined;
+  let discretePointsAxisX =
+    props.axisX.maxDiscretePoints || maxDiscretePointsAxisX;
+  series.forEach((s) => {
+    maxV = calcMinMax(s.normalizedDataset, true, maxV);
+    minV = calcMinMax(s.normalizedDataset, false, minV);
+    discretePointsAxisX = Math.min(
+      s.normalizedDataset.length,
+      discretePointsAxisX
+    );
+  });
+
+  let deltaV = maxV && minV ? maxV - minV : undefined;
+
+  minV =
+    deltaV && props.minValueExtraPct
+      ? minV! - (props.minValueExtraPct / 100) * deltaV
+      : minV;
+  maxV =
+    deltaV && props.maxValueExtraPct
+      ? maxV! + (props.maxValueExtraPct / 100) * deltaV
+      : maxV;
+
+  deltaV = maxV && minV ? maxV - minV : undefined;
+  // pixels between descrete points in X axis
+  const discreteGapX = discretePointsAxisX
+    ? chartWidth / (discretePointsAxisX - 1)
+    : 0;
+  const discretePointsAxisY =
+    props.axisY.maxDiscretePoints || maxDiscretePointsAxisY;
+  const discreteGapY = deltaV ? chartHeight / discretePointsAxisY : undefined;
+
+  return {
+    minV,
+    maxV,
+    discretePointsAxisX,
+    discretePointsAxisY,
+    discreteGapX,
+    discreteGapY,
+    deltaV,
+  };
+}
+
+/**
+ * Create LineChart component
+ * @param props
+ * @returns
+ */
 const LineChart = (props: LayoutProps) => {
   const ref = useRef<HTMLDivElement | null>(null);
   const [width, setWidth] = useState(props.width || 100);
@@ -107,104 +256,6 @@ const LineChart = (props: LayoutProps) => {
   const top = props.marginTop;
   const bottom = props.height - props.marginBottom;
   const h = bottom - top;
-
-  function calcLayout<P extends DataXY>(series: EnrichedSeries<P>[]) {
-    let maxV: undefined | number = undefined;
-    let minV: undefined | number = undefined;
-    let discretePointsAxisX =
-      props.axisX.maxDiscretePoints || maxDiscretePointsAxisX;
-    series.forEach((s) => {
-      maxV = calcMinMax(s.enrichedDataset, true, maxV);
-      minV = calcMinMax(s.enrichedDataset, false, minV);
-      discretePointsAxisX = Math.min(
-        s.enrichedDataset.length,
-        discretePointsAxisX
-      );
-    });
-
-    let deltaV = maxV && minV ? maxV - minV : undefined;
-
-    minV =
-      deltaV && props.minValueExtraPct
-        ? minV! - (props.minValueExtraPct / 100) * deltaV
-        : minV;
-    maxV =
-      deltaV && props.maxValueExtraPct
-        ? maxV! + (props.maxValueExtraPct / 100) * deltaV
-        : maxV;
-
-    deltaV = maxV && minV ? maxV - minV : undefined;
-    // pixels between descrete points in X axis
-    const discreteGapX = discretePointsAxisX
-      ? w / (discretePointsAxisX - 1)
-      : 0;
-    const discretePointsAxisY =
-      props.axisY.maxDiscretePoints || maxDiscretePointsAxisY;
-    const discreteGapY = deltaV ? h / discretePointsAxisY : undefined;
-
-    return {
-      minV,
-      maxV,
-      discretePointsAxisX,
-      discretePointsAxisY,
-      discreteGapX,
-      discreteGapY,
-      deltaV,
-    };
-  }
-
-  /**
-   * Normalize series to have the same length of datasets that share the
-   * same population of X axis.
-   * @param allSeries
-   * @returns 
-   */
-  function normalize<P extends DataXY>(
-    allSeries: Series<P>[]
-  ): EnrichedSeries<P>[] {
-    const ds = allSeries.map((s) => s.dataset.slice());
-    const result: EnrichedSeries<P>[] = allSeries.map((s) => ({
-      ...s,
-      enrichedDataset: [],
-    }));
-    const uniqueXes = new Map<number, number>();
-    ds.forEach((d) => d.forEach((p) => uniqueXes.set(p.x, 1)));
-    const xes = Array.from(uniqueXes.keys()).sort();
-
-    ds.forEach((ser, idx) => {
-      xes.forEach(x => {
-        let loop = 0;
-        while (loop++ < 1000) {
-          let pop = ser.length ? ser[0] : undefined;
-          if (pop) {
-            if (pop.x === x) {
-              result[idx].enrichedDataset.push(pop);
-              ser.shift();
-              break;
-            } else if (pop.x < x) {
-              result[idx].enrichedDataset.push(pop);
-              ser.shift();
-            } else {
-              const clone = { ...pop, x };
-              result[idx].enrichedDataset.push(clone);
-              break;
-            }
-          } else if (result[idx].enrichedDataset.length) {
-            let clone =
-              result[idx].enrichedDataset[
-                result[idx].enrichedDataset.length - 1
-              ];
-            clone = { ...clone, x };
-            result[idx].enrichedDataset.push(clone);
-            break;
-          } else break;
-        }
-      });
-    });
-
-    return result;
-  }
-
   const normalizedSeries = normalize(props.allSeries);
 
   const {
@@ -215,7 +266,7 @@ const LineChart = (props: LayoutProps) => {
     discreteGapX,
     discreteGapY,
     deltaV,
-  } = calcLayout(normalizedSeries);
+  } = calcLayout(normalizedSeries, props, w, h);
 
   /*
   console.log({
@@ -232,7 +283,7 @@ const LineChart = (props: LayoutProps) => {
   const charts =
     width && discreteGapX && deltaV && minV
       ? normalizedSeries.map((ser) => {
-          const ds = ser.enrichedDataset;
+          const ds = ser.normalizedDataset;
           const plots = Array.from(Array(discretePointsAxisX)).map((_, i) => {
             const idx =
               discretePointsAxisX === ds.length
@@ -421,9 +472,14 @@ const LineChart = (props: LayoutProps) => {
     }
   };
 
-  const handlePlot = <P extends DataXY>(ds: EnrichedSeries<P>, plot: Plot<P>) => {
-    (props.showHintOnPriceSelected == undefined || props.showHintOnPriceSelected) && setHint({ ds, plot });
-    props.onPriceSelected && props.onPriceSelected(ds.id, plot.price);
+  const handlePlot = <P extends DataXY>(
+    ds: EnrichedSeries<P>,
+    plot: Plot<P>
+  ) => {
+    (props.showHintOnPriceSelected == undefined ||
+      props.showHintOnPriceSelected) &&
+      setHint({ ds, plot });
+    props.onDataXYSelected && props.onDataXYSelected(ds.id, plot.price);
   };
 
   return (
@@ -526,8 +582,8 @@ const LineChart = (props: LayoutProps) => {
               />
               <text
                 key="hint_text"
-                x={left + 10}
-                y={top + 10}
+                x={props.hintLeft || left + 10}
+                y={props.hintTop || top + 10}
                 fill="white"
                 fontWeight="unset"
               >

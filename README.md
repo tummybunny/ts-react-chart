@@ -9,7 +9,7 @@ Example:
 ![basic minesweeper](https://github.com/tummybunny/ts-react-chart/blob/master/public/example.jpg)
 
 ```
-import LineChart, { Axis, Price, Series } from "./LineChart";
+import LineChart, { Axis, Series } from "./LineChart";
 
 function numberToDate(num: number) {
   const yr = (num / 10000) | 0;
@@ -127,7 +127,7 @@ const Example = () => {
       axisX={axisX}
       axisY={axisY}
       allSeries={allSeries}
-      onPriceSelected={(id, price) => console.log({id, price})}
+      onDataXYSelected={(seriesId, price) => console.log({seriesId, price})}
     ></LineChart>
   );
 };
