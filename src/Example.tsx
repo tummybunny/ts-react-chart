@@ -49,7 +49,7 @@ const series1: Series = {
     { x: 20240621, y: 4.9 },
     { x: 20240628, y: 6.9 },
   ],
-  lineStyle: { stroke: "red", strokeWidth: "3px" },
+  lineStyle: { stroke: "red", strokeWidth: "3px", strokeDasharray: "5 5", },
   label: "tomato",
   id: "tomato",
 };

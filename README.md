@@ -9,13 +9,16 @@ Example:
 ![basic minesweeper](https://github.com/tummybunny/ts-react-chart/blob/master/public/example.jpg)
 
 ```
-import LineChart, { Axis, Series } from "./LineChart";
+import LineChart, { Axis, DataPoint, Series } from "./LineChart";
 
-function numberToDate(num: number) {
-  const yr = (num / 10000) | 0;
-  const month = ((num % 10000) / 100) | 0;
-  const day = num % 100;
-  return new Date(yr, month - 1, day);
+function round2dp(n: number) {
+  return ((n * 100) | 0) / 100;
+}
+
+function dateToNumber(date: Date) {
+  return (
+    date.getDate() + (date.getMonth() + 1) * 100 + date.getFullYear() * 10000
+  );
 }
 
 function formatDate(d: Date) {
@@ -36,8 +39,9 @@ const series1: Series = {
     { x: 20240621, y: 4.9 },
     { x: 20240628, y: 6.9 },
   ],
-  lineStyle: { stroke: "red", strokeWidth: "3px" },
+  lineStyle: { stroke: "red", strokeWidth: "3px", strokeDasharray: "5 5", },
   label: "tomato",
+  id: "tomato",
 };
 
 const series2: Series = {
@@ -56,6 +60,7 @@ const series2: Series = {
   ],
   lineStyle: { stroke: "green", strokeWidth: "3px" },
   label: "banana",
+  id: "banana",
 };
 
 const series3: Series = {
@@ -76,6 +81,7 @@ const series3: Series = {
   ],
   lineStyle: { stroke: "blue", strokeWidth: "3px" },
   label: "apple",
+  id: "apple",
 };
 
 const allSeries = [series1, series2, series3];
@@ -84,16 +90,13 @@ const axisX: Axis = {
   maxDiscretePoints: 20,
   style: { stroke: "#808080", strokeWidth: "2px" },
   markings: 5,
-  markingPosX: -25,
-  markingPosY: 20,
-  markingTextStyle: {
-    color: "white",
-    fontSize: "12px"
-  },
+  markingPosXPosition: "middle",
+  markingPosYPosition: "middle",
+  markingPosX: 0,
+  markingPosY: 17,
+  markingTextStyle: { fill: "white", font: "12px verdana" },
   grid: true,
   gridStyle: { stroke: "#303030", strokeWidth: "2px" },
-  
-  // format date in DD/MM/YYYYY:
   formatValue: (n: number) => formatDate(numberToDate(n)),
 };
 
@@ -101,17 +104,24 @@ const axisY: Axis = {
   maxDiscretePoints: 5,
   style: { stroke: "#808080", strokeWidth: "2px" },
   markings: 5,
-  markingPosX: -35,
-  markingPosY: 5,
-  markingTextStyle: {
-    color: "white",
-    fontSize: "12px"
-  },
+  markingPosXPosition: "end",
+  markingPosYPosition: "middle",
+  markingPosX: -8,
+  markingPosY: 0,
+  markingTextStyle: { fill: "white", font: "12px verdana" },
   grid: true,
   gridStyle: { stroke: "#303030", strokeWidth: "2px" },
-
-  // format number with 2 decimal points:  
-  formatValue: (n: number) => (((n * 100) | 0) / 100).toString(),
+  discreteLines: [
+    {
+      value: 8,
+      lineStyle: { stroke: "#603030", strokeWidth: "2px", strokeDasharray: "4 2", },
+    },
+    {
+      value: 5.5,
+      lineStyle: { stroke: "#306030", strokeWidth: "2px", strokeDasharray: "4 2", },
+    },
+  ],
+  formatValue: (n: number) => round2dp(n).toString(),
 };
 
 const Example = () => {
@@ -122,12 +132,18 @@ const Example = () => {
       marginLeft={40}
       marginRight={25}
       height={200}
-      maxValueExtraPct={10}
-      minValueExtraPct={10}
+      maxValue={9}
+      minValue={4}
+      maxValueExtraPct={0}
+      minValueExtraPct={0}
       axisX={axisX}
       axisY={axisY}
       allSeries={allSeries}
-      onDataXYSelected={(seriesId, price) => console.log({seriesId, price})}
+      hintTextHeight={18}
+      hintTextStyle={{ fill: "white", font: "12px verdana" }}
+      onDataPointSelected={(seriesId, price) =>
+        console.log({ seriesId, price })
+      }
     ></LineChart>
   );
 };
