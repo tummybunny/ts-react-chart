@@ -6,7 +6,7 @@ const maxDiscretePointsAxisY = 255;
 /**
  * Simple data point denoted by id, at X with value Y.
  */
-export type DataXY = {
+export type DataPoint = {
   id?: string;
   x: number;
   y: number;
@@ -15,11 +15,19 @@ export type DataXY = {
 /**
  * Represent a dataset with an id and label
  */
-export type Series<P extends DataXY = DataXY> = {
+export type Series<P extends DataPoint = DataPoint> = {
   id: string;
   dataset: P[];
   lineStyle?: CSSProperties;
   label?: string;
+};
+
+export type DiscreteLines = {
+  /** A value along axis X or Y */
+  value: number;
+
+  /** CSS style of the line */
+  lineStyle?: CSSProperties;
 };
 
 /**
@@ -38,11 +46,25 @@ export type Axis = {
   /** Adjuster of Y of the location where marking is displayed on the axis */
   markingPosY?: number;
 
+  /** Text-anchor  */
+  markingPosXPosition?: "start" | "middle" | "end";
+
+  /** Dominant-baseline */
+  markingPosYPosition?:
+    | "middle"
+    | "auto"
+    | "hanging"
+    | "text-bottom"
+    | "text-top"
+    | "central";
+
   /** CSS style of marking text */
   markingTextStyle?: CSSProperties;
 
   /** Ideal number of dicrete minor markings (without text) along the axis */
   maxDiscretePoints?: number;
+
+  discreteLines?: DiscreteLines[];
 
   /** Whther or not to show horizontal or vertical line perpendicular to this axis at each discrete point */
   grid?: boolean;
@@ -50,14 +72,14 @@ export type Axis = {
   /** CSS style for the grid */
   gridStyle?: CSSProperties;
 
-  /** Formatter of x or y value of DataXY corresponding to this axis */
+  /** Formatter of x or y value of DataPoint corresponding to this axis */
   formatValue: (n: number) => string;
 };
 
 /**
- * Callback when a DataXY is selected on the chart
+ * Callback when a DataPoint is selected on the chart
  */
-export type OnDataXYSelected<P extends DataXY = DataXY> = (
+export type OnDataPointSelected<P extends DataPoint = DataPoint> = (
   seriesId: string,
   price: P
 ) => void;
@@ -65,30 +87,50 @@ export type OnDataXYSelected<P extends DataXY = DataXY> = (
 /**
  * Props to LineChart
  */
-export type LayoutProps<P extends DataXY = DataXY> = {
-  marginTop: number;
-  marginBottom: number;
-  marginLeft: number;
-  marginRight: number;
+export type LayoutProps<P extends DataPoint = DataPoint> = {
+  /** The width of the chart including margin */
   width?: number;
+
+  /** The height of the chart including margin */
   height: number;
 
-  // % added to max value in axis Y to avoid hitting ceiling
+  /** Space between upper bound and the chart */
+  marginTop: number;
+
+  /** Space between lower bound and the chart */
+  marginBottom: number;
+
+  /** Space between left bound and the chart */
+  marginLeft: number;
+
+  /** Space between righgt bound and the chart */
+  marginRight: number;
+
+  /** Max value on axis Y */
+  maxValue?: number;
+
+  /** Min value on axis Y */
+  minValue?: number;
+
+  /** % added to max value in axis Y to avoid hitting ceiling */
   maxValueExtraPct: number | undefined;
 
-  // % added to max value in axis Y to avoid hitting bottom
+  /** % added to max value in axis Y to avoid hitting bottom */
   minValueExtraPct: number | undefined;
 
   axisX: Axis;
   axisY: Axis;
   allSeries: Series<P>[];
+
   showHintOnPriceSelected?: Boolean;
-  hintLeft?: number;
-  hintTop?: number;
-  onDataXYSelected?: OnDataXYSelected<P>;
+  hintTextHeight?: number;
+  hintTextStyle?: CSSProperties;
+
+  /** Callback when DataPoint selected */
+  onDataPointSelected?: OnDataPointSelected<P>;
 };
 
-function calcMinMax<P extends DataXY>(
+function calcMinMax<P extends DataPoint>(
   arr: P[],
   isMax: Boolean,
   seed?: number | undefined
@@ -113,12 +155,12 @@ function calcMinMax<P extends DataXY>(
 }
 
 /** Internal */
-type EnrichedSeries<P extends DataXY> = Series<P> & {
+type EnrichedSeries<P extends DataPoint> = Series<P> & {
   normalizedDataset: Series<P>["dataset"];
 };
 
 /** Internal */
-type Plot<P extends DataXY> = {
+type Plot<P extends DataPoint> = {
   x: number;
   y: number;
   price: P;
@@ -126,7 +168,7 @@ type Plot<P extends DataXY> = {
 };
 
 /** Internal */
-type Hint<P extends DataXY> = {
+type Hint<P extends DataPoint> = {
   ds: EnrichedSeries<P>;
   plot: Plot<P>;
 };
@@ -135,7 +177,7 @@ type Hint<P extends DataXY> = {
  * Internal - Normalize series to have the same length of datasets that share the
  * same population of X axis.
  */
-function normalize<P extends DataXY>(
+function normalize<P extends DataPoint>(
   allSeries: Series<P>[]
 ): EnrichedSeries<P>[] {
   const ds = allSeries.map((s) => s.dataset.slice());
@@ -184,14 +226,14 @@ function normalize<P extends DataXY>(
 /**
  * Internal - Calculate layout information used to draw the chart
  */
-function calcLayout<P extends DataXY>(
+function calcLayout<P extends DataPoint>(
   series: EnrichedSeries<P>[],
   props: LayoutProps<P>,
   chartWidth: number,
   chartHeight: number
 ) {
-  let maxV: undefined | number = undefined;
-  let minV: undefined | number = undefined;
+  let maxV: undefined | number = props.maxValue;
+  let minV: undefined | number = props.minValue;
   let discretePointsAxisX =
     props.axisX.maxDiscretePoints || maxDiscretePointsAxisX;
   series.forEach((s) => {
@@ -249,7 +291,7 @@ const LineChart = (props: LayoutProps) => {
     }
   }, []);
 
-  const [hint, setHint] = useState<Hint<DataXY> | undefined>(undefined);
+  const [hint, setHint] = useState<Hint<DataPoint> & { click: Boolean }| undefined>(undefined);
   const left = props.marginLeft;
   const right = width - props.marginRight;
   const w = right - left;
@@ -257,6 +299,7 @@ const LineChart = (props: LayoutProps) => {
   const bottom = props.height - props.marginBottom;
   const h = bottom - top;
   const normalizedSeries = normalize(props.allSeries);
+  const hintTextHeight = props.hintTextHeight || 15;
 
   const {
     minV,
@@ -292,7 +335,7 @@ const LineChart = (props: LayoutProps) => {
             const p = ds[idx];
             const pos = p.x;
             const value = p.y;
-            const r: Plot<DataXY> = {
+            const r: Plot<DataPoint> = {
               x: Math.round(left + i * discreteGapX),
               y: Math.round(bottom - ((value - minV) / deltaV) * h),
               price: p,
@@ -355,11 +398,11 @@ const LineChart = (props: LayoutProps) => {
           const text = showMarking ? (
             <text
               key={`axisY_txt${i}`}
+              textAnchor={props.axisY.markingPosXPosition || "middle"}
+              dominantBaseline={props.axisY.markingPosYPosition || "middle"}
               x={left + (props.axisY.markingPosX || 0)}
               y={bottom - pointY + (props.axisY.markingPosY || 0)}
-              fontSize={props.axisY.markingTextStyle?.fontSize || "unset"}
-              fill={props.axisY.markingTextStyle?.color || "unset"}
-              fontWeight={props.axisY.markingTextStyle?.fontWeight || "unset"}
+              style={props.axisY.markingTextStyle || {}}
             >
               {props.axisY.formatValue(minV! + gap * i)}
             </text>
@@ -386,6 +429,23 @@ const LineChart = (props: LayoutProps) => {
           y2={bottom}
           style={props.axisY.style || {}}
         />
+        {props.axisY.discreteLines ? (
+          <>
+            {props.axisY.discreteLines.map((l, i) => {
+              const y = Math.round(bottom - ((l.value - minV!!) / deltaV) * h);
+              return (
+                <line
+                  key={`discreteY_pt${i}`}
+                  x1={left}
+                  y1={y}
+                  x2={right}
+                  y2={y}
+                  style={l.lineStyle || {}}
+                />
+              );
+            })}
+          </>
+        ) : null}
       </>
     ) : null;
 
@@ -429,13 +489,13 @@ const LineChart = (props: LayoutProps) => {
         const text = showMarking ? (
           <text
             key={`axisX_txt${i}`}
+            textAnchor={props.axisX.markingPosXPosition || "middle"}
+            dominantBaseline={props.axisX.markingPosYPosition || "middle"}
             x={pointX + (props.axisX.markingPosX || 0)}
             y={bottom + (props.axisX.markingPosY || 0)}
-            fontSize={props.axisX.markingTextStyle?.fontSize || "unset"}
-            fill={props.axisX.markingTextStyle?.color || "unset"}
-            fontWeight={props.axisX.markingTextStyle?.fontWeight || "unset"}
+            style={props.axisX.markingTextStyle || {}}
           >
-            {charts ? props.axisX.formatValue(charts[0].plots[i].price.y) : "X"}
+            {charts ? props.axisX.formatValue(charts[0].plots[i].price.x) : "X"}
           </text>
         ) : null;
 
@@ -472,15 +532,98 @@ const LineChart = (props: LayoutProps) => {
     }
   };
 
-  const handlePlot = <P extends DataXY>(
+  const handlePlot = <P extends DataPoint>(
     ds: EnrichedSeries<P>,
-    plot: Plot<P>
+    plot: Plot<P>,
+    click: Boolean
   ) => {
-    (props.showHintOnPriceSelected == undefined ||
-      props.showHintOnPriceSelected) &&
-      setHint({ ds, plot });
-    props.onDataXYSelected && props.onDataXYSelected(ds.id, plot.price);
+    if (
+      props.showHintOnPriceSelected == undefined ||
+      props.showHintOnPriceSelected
+    ) {
+      setHint((h) => (h?.plot == plot && h?.click == click ? undefined : { ds, plot, click }));
+    }
+    props.onDataPointSelected && props.onDataPointSelected(ds.id, plot.price);
   };
+
+  const svgHint = hint ? (
+    <>
+      <circle
+        key={`hint_circle`}
+        cx={hint.plot.x}
+        cy={hint.plot.y}
+        r={5}
+        stroke={hint.ds.lineStyle?.stroke || "white"}
+        strokeWidth={1}
+        fill="white"
+        onTouchEnd={(e) => handlePlot(hint.ds, hint.plot, false)}
+        onClick={(e) => handlePlot(hint.ds, hint.plot, true)}
+      />
+      <text
+        key="hint_text1"
+        textAnchor={
+          hint.plot.x < width / 8
+            ? "start"
+            : hint.plot.x > (width * 7) / 8
+            ? "end"
+            : "middle"
+        }
+        dominantBaseline="middle"
+        x={hint.plot.x}
+        y={
+          hint.plot.y +
+          (hint.plot.y > props.height / 2
+            ? hintTextHeight * -3
+            : hintTextHeight)
+        }
+        style={props.hintTextStyle || {}}
+      >
+        {`${hint.ds.label || ""}`}
+      </text>
+      <text
+        key="hint_text2"
+        textAnchor={
+          hint.plot.x < width / 8
+            ? "start"
+            : hint.plot.x > (width * 7) / 8
+            ? "end"
+            : "middle"
+        }
+        dominantBaseline="middle"
+        x={hint.plot.x}
+        y={
+          hint.plot.y +
+          (hint.plot.y > props.height / 2
+            ? -2 * hintTextHeight
+            : 2 * hintTextHeight)
+        }
+        style={props.hintTextStyle || {}}
+      >
+        {props.axisY.formatValue(hint.plot.price.y)}
+      </text>
+      <text
+        key="hint_text3"
+        textAnchor={
+          hint.plot.x < width / 8
+            ? "start"
+            : hint.plot.x > (width * 7) / 8
+            ? "end"
+            : "middle"
+        }
+        dominantBaseline="middle"
+        x={hint.plot.x}
+        y={
+          hint.plot.y +
+          (hint.plot.y > props.height / 2
+            ? -hintTextHeight
+            : hintTextHeight * 3)
+        }
+        style={props.hintTextStyle || {}}
+      >
+        {props.axisX.formatValue(hint.plot.price.x)}{" "}
+      </text>
+    </>
+  ) : null;
 
   return (
     <div ref={ref}>
@@ -515,53 +658,43 @@ const LineChart = (props: LayoutProps) => {
           {svgAxisBackX}
           {svgAxisBackY}
           {charts.map((ch, chIdx) => {
-            return ch.plots.map((a, idx, plots) => {
-              /*
-              if (idx < plots.length - 1) {
-                console.log({
-                  x1: a.x,
-                  y1: a.y,
-                  x2: plots[idx + 1].x,
-                  y2: plots[idx + 1].y,
-                });
-              }
-              */
+            return ch.plots.map((plot, idx) => {
               const dotStroke = ch.series.lineStyle?.stroke || "white";
-              return idx < plots.length - 1 ? (
+              return idx < ch.plots.length - 1 ? (
                 <>
                   <line
                     key={`lx_${chIdx}_${idx}`}
-                    x1={a.x}
-                    y1={a.y}
-                    x2={plots[idx + 1].x}
-                    y2={plots[idx + 1].y}
+                    x1={plot.x}
+                    y1={plot.y}
+                    x2={ch.plots[idx + 1].x}
+                    y2={ch.plots[idx + 1].y}
                     style={ch.series.lineStyle}
                   />
                   <circle
-                    key={`plot_${chIdx}_${a.x}_${a.y}`}
-                    cx={a.x}
-                    cy={a.y}
+                    key={`plot_${chIdx}_${plot.x}_${plot.y}`}
+                    cx={plot.x}
+                    cy={plot.y}
                     r={3}
                     stroke={dotStroke}
                     strokeWidth={2}
                     fill="black"
-                    onTouchEnd={(e) => handlePlot(charts[chIdx].series, a)}
-                    onClick={(e) => handlePlot(charts[chIdx].series, a)}
+                    onTouchEnd={(e) => handlePlot(charts[chIdx].series, plot, false)}
+                    onClick={(e) => handlePlot(charts[chIdx].series, plot, true)}
                   />
-                  {idx == plots.length - 2 ? (
+                  {idx == ch.plots.length - 2 ? (
                     <circle
                       key={`plot_${chIdx}_last`}
-                      cx={plots[idx + 1].x}
-                      cy={plots[idx + 1].y}
+                      cx={ch.plots[idx + 1].x}
+                      cy={ch.plots[idx + 1].y}
                       r={3}
                       stroke={dotStroke}
                       strokeWidth={2}
                       fill="black"
                       onTouchEnd={(e) =>
-                        handlePlot(charts[chIdx].series, plots[idx + 1])
+                        handlePlot(charts[chIdx].series, ch.plots[idx + 1], false)
                       }
                       onClick={(e) =>
-                        handlePlot(charts[chIdx].series, plots[idx + 1])
+                        handlePlot(charts[chIdx].series, ch.plots[idx + 1], true)
                       }
                     />
                   ) : null}
@@ -569,32 +702,9 @@ const LineChart = (props: LayoutProps) => {
               ) : null;
             });
           })}
-          {hint ? (
-            <>
-              <circle
-                key={`hint_circle`}
-                cx={hint.plot.x}
-                cy={hint.plot.y}
-                r={5}
-                stroke={hint.ds.lineStyle?.stroke || "white"}
-                strokeWidth={1}
-                fill="white"
-              />
-              <text
-                key="hint_text"
-                x={props.hintLeft || left + 10}
-                y={props.hintTop || top + 10}
-                fill="white"
-                fontWeight="unset"
-              >
-                {`${hint.ds.label || ""}`}{" "}
-                {props.axisX.formatValue(hint.plot.price.x)}{" "}
-                {props.axisY.formatValue(hint.plot.price.y)}
-              </text>
-            </>
-          ) : null}
-          {svgAxisFrontX}
           {svgAxisFrontY}
+          {svgAxisFrontX}
+          {svgHint}
         </svg>
       ) : null}
     </div>

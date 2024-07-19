@@ -1,4 +1,4 @@
-import LineChart, { Axis, DataXY, Series } from "./LineChart";
+import LineChart, { Axis, DataPoint, Series } from "./LineChart";
 
 function round2dp(n: number) {
   return ((n * 100) | 0) / 100;
@@ -19,7 +19,7 @@ function numberToDate(num: number) {
 
 function randomDataset(startDt: number, inc: number) {
   // setup price / series1
-  const prices: DataXY[] = [];
+  const prices: DataPoint[] = [];
   let price = 50;
   const date = numberToDate(startDt);
   for (let i = 0; i < 50; i++) {
@@ -51,7 +51,7 @@ const series1: Series = {
   ],
   lineStyle: { stroke: "red", strokeWidth: "3px" },
   label: "tomato",
-  id: "tomato"
+  id: "tomato",
 };
 
 const series2: Series = {
@@ -71,7 +71,7 @@ const series2: Series = {
   ],
   lineStyle: { stroke: "green", strokeWidth: "3px" },
   label: "banana",
-  id: "banana"
+  id: "banana",
 };
 
 const series3: Series = {
@@ -93,7 +93,7 @@ const series3: Series = {
   ],
   lineStyle: { stroke: "blue", strokeWidth: "3px" },
   label: "apple",
-  id: "apple"
+  id: "apple",
 };
 
 const allSeries = [series1, series2, series3];
@@ -102,12 +102,11 @@ const axisX: Axis = {
   maxDiscretePoints: 20,
   style: { stroke: "#808080", strokeWidth: "2px" },
   markings: 5,
-  markingPosX: -25,
-  markingPosY: 20,
-  markingTextStyle: {
-    color: "white",
-    fontSize: "12px"
-  },
+  markingPosXPosition: "middle",
+  markingPosYPosition: "middle",
+  markingPosX: 0,
+  markingPosY: 17,
+  markingTextStyle: { fill: "white", font: "12px verdana" },
   grid: true,
   gridStyle: { stroke: "#303030", strokeWidth: "2px" },
   formatValue: (n: number) => formatDate(numberToDate(n)),
@@ -117,14 +116,23 @@ const axisY: Axis = {
   maxDiscretePoints: 5,
   style: { stroke: "#808080", strokeWidth: "2px" },
   markings: 5,
-  markingPosX: -35,
-  markingPosY: 5,
-  markingTextStyle: {
-    color: "white",
-    fontSize: "12px"
-  },
+  markingPosXPosition: "end",
+  markingPosYPosition: "middle",
+  markingPosX: -8,
+  markingPosY: 0,
+  markingTextStyle: { fill: "white", font: "12px verdana" },
   grid: true,
   gridStyle: { stroke: "#303030", strokeWidth: "2px" },
+  discreteLines: [
+    {
+      value: 8,
+      lineStyle: { stroke: "#603030", strokeWidth: "2px", strokeDasharray: "4 2", },
+    },
+    {
+      value: 5.5,
+      lineStyle: { stroke: "#306030", strokeWidth: "2px", strokeDasharray: "4 2", },
+    },
+  ],
   formatValue: (n: number) => round2dp(n).toString(),
 };
 
@@ -136,12 +144,18 @@ const Example = () => {
       marginLeft={40}
       marginRight={25}
       height={200}
-      maxValueExtraPct={10}
-      minValueExtraPct={10}
+      maxValue={9}
+      minValue={4}
+      maxValueExtraPct={0}
+      minValueExtraPct={0}
       axisX={axisX}
       axisY={axisY}
       allSeries={allSeries}
-      onDataXYSelected={(seriesId, price) => console.log({seriesId, price})}
+      hintTextHeight={18}
+      hintTextStyle={{ fill: "white", font: "12px verdana" }}
+      onDataPointSelected={(seriesId, price) =>
+        console.log({ seriesId, price })
+      }
     ></LineChart>
   );
 };
