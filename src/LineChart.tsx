@@ -276,6 +276,10 @@ function calcLayout<P extends DataPoint>(
   };
 }
 
+function isTouchDevice() {
+  return window.matchMedia("(pointer: coarse)").matches;
+}
+
 /**
  * Create LineChart component
  * @param props
@@ -291,7 +295,7 @@ const LineChart = (props: LayoutProps) => {
     }
   }, []);
 
-  const [hint, setHint] = useState<Hint<DataPoint> & { click: Boolean }| undefined>(undefined);
+  const [hint, setHint] = useState<Hint<DataPoint> | undefined>(undefined);
   const left = props.marginLeft;
   const right = width - props.marginRight;
   const w = right - left;
@@ -377,6 +381,23 @@ const LineChart = (props: LayoutProps) => {
             </>
           );
         })}
+        {props.axisY.discreteLines ? (
+          <>
+            {props.axisY.discreteLines.map((l, i) => {
+              const y = Math.round(bottom - ((l.value - minV!!) / deltaV) * h);
+              return (
+                <line
+                  key={`discreteY_pt${i}`}
+                  x1={left}
+                  y1={y}
+                  x2={right}
+                  y2={y}
+                  style={l.lineStyle || {}}
+                />
+              );
+            })}
+          </>
+        ) : null}
       </>
     ) : null;
 
@@ -429,23 +450,6 @@ const LineChart = (props: LayoutProps) => {
           y2={bottom}
           style={props.axisY.style || {}}
         />
-        {props.axisY.discreteLines ? (
-          <>
-            {props.axisY.discreteLines.map((l, i) => {
-              const y = Math.round(bottom - ((l.value - minV!!) / deltaV) * h);
-              return (
-                <line
-                  key={`discreteY_pt${i}`}
-                  x1={left}
-                  y1={y}
-                  x2={right}
-                  y2={y}
-                  style={l.lineStyle || {}}
-                />
-              );
-            })}
-          </>
-        ) : null}
       </>
     ) : null;
 
@@ -524,26 +528,22 @@ const LineChart = (props: LayoutProps) => {
     </>
   ) : null;
 
-  const handlePoint = (x: number, y: number, pressed: Boolean, e: any) => {
-    //console.log({ x, y, pressed, e });
-
-    if (pressed) {
-      // TODO: calculate price?
-    }
-  };
-
   const handlePlot = <P extends DataPoint>(
     ds: EnrichedSeries<P>,
     plot: Plot<P>,
-    click: Boolean
+    mouseEvent: Boolean
   ) => {
+    const touchDevice = isTouchDevice();
+    if ((touchDevice && mouseEvent) || (!touchDevice && !mouseEvent)) return 1;
+
     if (
       props.showHintOnPriceSelected == undefined ||
       props.showHintOnPriceSelected
     ) {
-      setHint((h) => (h?.plot == plot && h?.click == click ? undefined : { ds, plot, click }));
+      setHint((h) => (h?.plot == plot ? undefined : { ds, plot }));
     }
     props.onDataPointSelected && props.onDataPointSelected(ds.id, plot.price);
+    return 1;
   };
 
   const svgHint = hint ? (
@@ -631,28 +631,6 @@ const LineChart = (props: LayoutProps) => {
         <svg
           width={`${width}px`}
           height={`${props.height}px`}
-          onTouchStart={(e) =>
-            e.changedTouches.length
-              ? handlePoint(
-                  e.changedTouches[0].clientX,
-                  e.changedTouches[0].clientY,
-                  true,
-                  e
-                )
-              : null
-          }
-          onTouchEnd={(e) =>
-            e.changedTouches.length
-              ? handlePoint(
-                  e.changedTouches[0].clientX,
-                  e.changedTouches[0].clientY,
-                  false,
-                  e
-                )
-              : null
-          }
-          onMouseDown={(e) => handlePoint(e.clientX, e.clientY, true, e)}
-          onMouseUp={(e) => handlePoint(e.clientX, e.clientY, false, e)}
         >
           <rect x={0} y={0} width={"100%"} height={"100%"} fill="black" />
           {svgAxisBackX}
@@ -678,8 +656,12 @@ const LineChart = (props: LayoutProps) => {
                     stroke={dotStroke}
                     strokeWidth={2}
                     fill="black"
-                    onTouchEnd={(e) => handlePlot(charts[chIdx].series, plot, false)}
-                    onClick={(e) => handlePlot(charts[chIdx].series, plot, true)}
+                    onTouchEnd={(e) =>
+                      handlePlot(charts[chIdx].series, plot, false)
+                    }
+                    onClick={(e) =>
+                      handlePlot(charts[chIdx].series, plot, true)
+                    }
                   />
                   {idx == ch.plots.length - 2 ? (
                     <circle
@@ -691,10 +673,18 @@ const LineChart = (props: LayoutProps) => {
                       strokeWidth={2}
                       fill="black"
                       onTouchEnd={(e) =>
-                        handlePlot(charts[chIdx].series, ch.plots[idx + 1], false)
+                        handlePlot(
+                          charts[chIdx].series,
+                          ch.plots[idx + 1],
+                          false
+                        )
                       }
                       onClick={(e) =>
-                        handlePlot(charts[chIdx].series, ch.plots[idx + 1], true)
+                        handlePlot(
+                          charts[chIdx].series,
+                          ch.plots[idx + 1],
+                          true
+                        )
                       }
                     />
                   ) : null}

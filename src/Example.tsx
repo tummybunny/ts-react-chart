@@ -144,7 +144,7 @@ const Example = () => {
       marginLeft={40}
       marginRight={25}
       height={200}
-      maxValue={9}
+      maxValue={8.5}
       minValue={4}
       maxValueExtraPct={0}
       minValueExtraPct={0}
