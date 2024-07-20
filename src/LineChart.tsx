@@ -501,7 +501,7 @@ const LineChart = (props: LayoutProps) => {
     return 1;
   };
 
-  const svgHint = hint ? (
+  const svgHint = shouldRender && hint ? (
     <>
       <circle
         key={`hint_circle`}
@@ -574,7 +574,7 @@ const LineChart = (props: LayoutProps) => {
     </>
   ) : null;
 
-  const svgLineCharts = charts ? (
+  const svgLineCharts = shouldRender && charts ? (
     <>
       {" "}
       {charts.map((ch, chIdx) => {
