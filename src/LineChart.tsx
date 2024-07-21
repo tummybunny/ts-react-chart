@@ -205,7 +205,7 @@ function normalize<P extends DataPoint>(
     const lastPoint = ser.length ? ser[ser.length - 1] : undefined;
     xes.forEach((x) => {
       let loop = 0;
-      while (loop++ < 1000) {
+      while (true) {
         let pop = ser.length ? ser[0] : undefined;
         if (pop) {
           pop =
@@ -229,7 +229,7 @@ function normalize<P extends DataPoint>(
             result[idx].normalizedDataset.push(clone);
             break;
           }
-        } else if (lastPoint && result[idx].normalizedDataset.length) {
+        } else if (lastPoint) {
           const clone =
             strat === "same-start"
               ? { ...lastPoint, x, y: lastPoint.y - firstY }
@@ -450,7 +450,7 @@ const LineChart = (props: ChartProps) => {
             <>
               <line
                 key={`axisY_pt${i}`}
-                x1={left - 3}
+                x1={left - (showMarking ? 7 : 3)}
                 y1={bottom - pointY}
                 x2={left}
                 y2={bottom - pointY}
@@ -528,7 +528,7 @@ const LineChart = (props: ChartProps) => {
               x1={pointX}
               y1={bottom}
               x2={pointX}
-              y2={bottom + 3}
+              y2={bottom + (showMarking ? 7 : 3)}
               style={props.axisX.style || {}}
             />
             {text}
