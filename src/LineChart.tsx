@@ -322,10 +322,6 @@ const LineChart = (props: ChartProps) => {
   const [hint, setHint] = useState<Hint<DataPoint> | undefined>(undefined);
 
   useEffect(() => {
-    setHint(undefined);
-  }, [props]);
-
-  useEffect(() => {
     if (!props.width || props.width < 1) {
       ref.current?.clientWidth && setWidth(ref.current?.clientWidth);
     }
@@ -566,6 +562,14 @@ const LineChart = (props: ChartProps) => {
   const svgHint =
     shouldRender && hint ? (
       <>
+        <line
+          key={`hint_vline`}
+          x1={hint.plot.x}
+          y1={top}
+          x2={hint.plot.x}
+          y2={bottom}
+          style={{ stroke: hint.ds.lineStyle?.stroke || "white", strokeWidth: "1px", strokeDasharray: "2 5", }}
+        ></line>
         <circle
           key={`hint_circle`}
           cx={hint.plot.x}
