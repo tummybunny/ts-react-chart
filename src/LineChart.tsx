@@ -317,7 +317,13 @@ function isTouchDevice() {
  */
 const LineChart = (props: ChartProps) => {
   const ref = useRef<HTMLDivElement | null>(null);
+  const prev = useRef<string>("");
   const [width, setWidth] = useState(props.width || 100);
+  const [hint, setHint] = useState<Hint<DataPoint> | undefined>(undefined);
+
+  useEffect(() => {
+    setHint(undefined);
+  }, [props]);
 
   useEffect(() => {
     if (!props.width || props.width < 1) {
@@ -325,7 +331,6 @@ const LineChart = (props: ChartProps) => {
     }
   }, []);
 
-  const [hint, setHint] = useState<Hint<DataPoint> | undefined>(undefined);
   const left = props.marginLeft || 10;
   const right = width - (props.marginRight || 10);
   const w = right - left;
