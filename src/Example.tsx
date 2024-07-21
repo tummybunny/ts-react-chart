@@ -153,6 +153,7 @@ const Example = () => {
       allSeries={allSeries}
       hintTextHeight={18}
       hintTextStyle={{ fill: "white", font: "12px verdana" }}
+      strategy="parallel"
       onDataPointSelected={(seriesId, price) =>
         console.log({ seriesId, price })
       }

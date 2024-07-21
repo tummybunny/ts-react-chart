@@ -87,7 +87,7 @@ export type OnDataPointSelected<P extends DataPoint = DataPoint> = (
 /**
  * Props to LineChart
  */
-export type LayoutProps<P extends DataPoint = DataPoint> = {
+export type LineChartProps<P extends DataPoint = DataPoint> = {
   /** The width of the chart including margin */
   width?: number;
 
@@ -121,6 +121,13 @@ export type LayoutProps<P extends DataPoint = DataPoint> = {
   axisX: Axis;
   axisY: Axis;
   allSeries: Series<P>[];
+
+  /**
+   * Strategy of drawing series on the chart.
+   * - parallel: each series runs independently from others
+   * - same-start: all series run from the same beginning in order to compare the performance between series
+   */
+  strategy?: "parallel" | "same-start"
 
   showHint?: Boolean;
   hintTextHeight?: number;
@@ -178,8 +185,10 @@ type Hint<P extends DataPoint> = {
  * same population of X axis.
  */
 function normalize<P extends DataPoint>(
+  strategy: LineChartProps["strategy"],
   allSeries: Series<P>[]
 ): EnrichedSeries<P>[] {
+  const strat = allSeries.length < 2 ? "parallel" : strategy || "parallel";
   const ds = allSeries.map((s) => s.dataset.slice());
   const result: EnrichedSeries<P>[] = allSeries.map((s) => ({
     ...s,
@@ -190,10 +199,15 @@ function normalize<P extends DataPoint>(
   const xes = Array.from(uniqueXes.keys()).sort();
 
   ds.forEach((ser, idx) => {
+    const firstY = ser.length ? ser[0].y : 0;
+    const lastPoint = ser.length ? ser[ser.length - 1] : undefined;
     xes.forEach((x) => {
       let loop = 0;
       while (loop++ < 1000) {
         let pop = ser.length ? ser[0] : undefined;
+        if (pop && strat === "same-start") {
+          pop = { ...pop, y: pop.y - firstY};
+        }
         if (pop) {
           if (pop.x === x) {
             result[idx].normalizedDataset.push(pop);
@@ -207,12 +221,8 @@ function normalize<P extends DataPoint>(
             result[idx].normalizedDataset.push(clone);
             break;
           }
-        } else if (result[idx].normalizedDataset.length) {
-          let clone =
-            result[idx].normalizedDataset[
-              result[idx].normalizedDataset.length - 1
-            ];
-          clone = { ...clone, x };
+        } else if (lastPoint && result[idx].normalizedDataset.length) {
+          const clone = { ...lastPoint, x, y: strat === "same-start" ? lastPoint.y - firstY : lastPoint.y };
           result[idx].normalizedDataset.push(clone);
           break;
         } else break;
@@ -228,12 +238,13 @@ function normalize<P extends DataPoint>(
  */
 function calcLayout<P extends DataPoint>(
   series: EnrichedSeries<P>[],
-  props: LayoutProps<P>,
+  props: LineChartProps<P>,
   chartWidth: number,
   chartHeight: number
 ) {
-  let maxV: undefined | number = props.maxValue;
-  let minV: undefined | number = props.minValue;
+  const strat = series.length < 2 ? "parallel" : props.strategy || "parallel";
+  let maxV: undefined | number = strat === "parallel" ? props.maxValue : undefined;
+  let minV: undefined | number = strat === "parallel" ? props.minValue : undefined;
   let discretePointsAxisX =
     props.axisX.maxDiscretePoints || maxDiscretePointsAxisX;
   series.forEach((s) => {
@@ -279,7 +290,7 @@ function isTouchDevice() {
  * @param props
  * @returns
  */
-const LineChart = (props: LayoutProps) => {
+const LineChart = (props: LineChartProps) => {
   const ref = useRef<HTMLDivElement | null>(null);
   const [width, setWidth] = useState(props.width || 100);
 
@@ -297,7 +308,7 @@ const LineChart = (props: LayoutProps) => {
   const height = props.height || 100;
   const bottom = height - (props.marginBottom  || 10);
   const h = bottom - top;
-  const normalizedSeries = normalize(props.allSeries);
+  const normalizedSeries = normalize(props.strategy, props.allSeries);
   const hintTextHeight = props.hintTextHeight || 15;
 
   const {
