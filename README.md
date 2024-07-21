@@ -8,7 +8,7 @@ Example:
 
 ![basic minesweeper](https://github.com/tummybunny/ts-react-chart/blob/master/public/example.jpg)
 
-```
+``` typescript
 import LineChart, { Axis, DataPoint, Series } from "./LineChart";
 
 function round2dp(n: number) {
