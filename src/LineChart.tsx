@@ -204,7 +204,6 @@ function normalize<P extends DataPoint>(
     const firstY = ser.length ? ser[0].y : 0;
     const lastPoint = ser.length ? ser[ser.length - 1] : undefined;
     xes.forEach((x) => {
-      let loop = 0;
       while (true) {
         let pop = ser.length ? ser[0] : undefined;
         if (pop) {

@@ -6,7 +6,7 @@ It is work in progress...
 
 Example:
 
-![basic minesweeper](https://github.com/tummybunny/ts-react-chart/blob/master/public/example.jpg)
+![simple chart](https://github.com/tummybunny/ts-react-chart/blob/master/public/example.jpg)
 
 ``` typescript
 import LineChart, { Axis, DataPoint, Series } from "./LineChart";
@@ -152,6 +152,11 @@ const Example = () => {
 export default Example;
 ```
 
+## Main Usage
+
+This chart is useful when plotting market data series.
+
+![market data](https://github.com/tummybunny/ts-react-chart/blob/master/public/example2.jpg)
 
 ## DRY note
 
