@@ -139,6 +139,7 @@ const axisY: Axis = {
 const Example = () => {
   return (
     <LineChart
+      strategy="parallel" // try "same-start" or "performance"
       marginTop={15}
       marginBottom={30}
       marginLeft={40}
@@ -153,7 +154,6 @@ const Example = () => {
       allSeries={allSeries}
       hintTextHeight={18}
       hintTextStyle={{ fill: "white", font: "12px verdana" }}
-      strategy="parallel"
       onDataPointSelected={(seriesId, price) =>
         console.log({ seriesId, price })
       }

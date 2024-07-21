@@ -127,6 +127,7 @@ const axisY: Axis = {
 const Example = () => {
   return (
     <LineChart
+      strategy="parallel" // try "same-start" or "performance"
       marginTop={15}
       marginBottom={30}
       marginLeft={40}
