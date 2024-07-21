@@ -87,7 +87,7 @@ export type OnDataPointSelected<P extends DataPoint = DataPoint> = (
 /**
  * Props to LineChart
  */
-export type LineChartProps<P extends DataPoint = DataPoint> = {
+export type ChartProps<P extends DataPoint = DataPoint> = {
   /** The width of the chart including margin */
   width?: number;
 
@@ -125,9 +125,11 @@ export type LineChartProps<P extends DataPoint = DataPoint> = {
   /**
    * Strategy of drawing series on the chart.
    * - parallel: each series runs independently from others
-   * - same-start: all series run from the same beginning in order to compare the performance between series
+   * - same-start: all series run from the same beginning, zero, in order to compare the performance between series
+   * - performance: all series run from the same beginning, 1, and move up or down based on their relative performance (%)
+   *   in order to compare the performance between series
    */
-  strategy?: "parallel" | "same-start"
+  strategy?: "parallel" | "same-start" | "performance";
 
   showHint?: Boolean;
   hintTextHeight?: number;
@@ -185,7 +187,7 @@ type Hint<P extends DataPoint> = {
  * same population of X axis.
  */
 function normalize<P extends DataPoint>(
-  strategy: LineChartProps["strategy"],
+  strategy: ChartProps["strategy"],
   allSeries: Series<P>[]
 ): EnrichedSeries<P>[] {
   const strat = allSeries.length < 2 ? "parallel" : strategy || "parallel";
@@ -205,9 +207,15 @@ function normalize<P extends DataPoint>(
       let loop = 0;
       while (loop++ < 1000) {
         let pop = ser.length ? ser[0] : undefined;
-        if (pop && strat === "same-start") {
-          pop = { ...pop, y: pop.y - firstY};
+        if (pop) {
+          pop =
+            strat === "same-start"
+              ? { ...pop, y: pop.y - firstY }
+              : strat === "performance"
+              ? { ...pop, y: Math.round((100 * pop.y) / firstY) / 100 }
+              : pop;
         }
+
         if (pop) {
           if (pop.x === x) {
             result[idx].normalizedDataset.push(pop);
@@ -222,7 +230,12 @@ function normalize<P extends DataPoint>(
             break;
           }
         } else if (lastPoint && result[idx].normalizedDataset.length) {
-          const clone = { ...lastPoint, x, y: strat === "same-start" ? lastPoint.y - firstY : lastPoint.y };
+          const clone =
+            strat === "same-start"
+              ? { ...lastPoint, x, y: lastPoint.y - firstY }
+              : strat === "performance"
+              ? { ...lastPoint, x, y: Math.round((100 * lastPoint.y) / firstY) / 100 }
+              : { ...lastPoint, x, y: lastPoint.y };
           result[idx].normalizedDataset.push(clone);
           break;
         } else break;
@@ -238,13 +251,15 @@ function normalize<P extends DataPoint>(
  */
 function calcLayout<P extends DataPoint>(
   series: EnrichedSeries<P>[],
-  props: LineChartProps<P>,
+  props: ChartProps<P>,
   chartWidth: number,
   chartHeight: number
 ) {
   const strat = series.length < 2 ? "parallel" : props.strategy || "parallel";
-  let maxV: undefined | number = strat === "parallel" ? props.maxValue : undefined;
-  let minV: undefined | number = strat === "parallel" ? props.minValue : undefined;
+  let maxV: undefined | number =
+    strat === "parallel" ? props.maxValue : undefined;
+  let minV: undefined | number =
+    strat === "parallel" ? props.minValue : undefined;
   let discretePointsAxisX =
     props.axisX.maxDiscretePoints || maxDiscretePointsAxisX;
   series.forEach((s) => {
@@ -277,7 +292,13 @@ function calcLayout<P extends DataPoint>(
   const discreteGapY = deltaV ? chartHeight / discretePointsAxisY : undefined;
 
   return {
-    minV, maxV, discretePointsAxisX, discretePointsAxisY, discreteGapX, discreteGapY, deltaV,
+    minV,
+    maxV,
+    discretePointsAxisX,
+    discretePointsAxisY,
+    discreteGapX,
+    discreteGapY,
+    deltaV,
   };
 }
 
@@ -290,7 +311,7 @@ function isTouchDevice() {
  * @param props
  * @returns
  */
-const LineChart = (props: LineChartProps) => {
+const LineChart = (props: ChartProps) => {
   const ref = useRef<HTMLDivElement | null>(null);
   const [width, setWidth] = useState(props.width || 100);
 
@@ -306,7 +327,7 @@ const LineChart = (props: LineChartProps) => {
   const w = right - left;
   const top = props.marginTop || 10;
   const height = props.height || 100;
-  const bottom = height - (props.marginBottom  || 10);
+  const bottom = height - (props.marginBottom || 10);
   const h = bottom - top;
   const normalizedSeries = normalize(props.strategy, props.allSeries);
   const hintTextHeight = props.hintTextHeight || 15;
@@ -358,7 +379,10 @@ const LineChart = (props: LineChartProps) => {
               {props.axisY.grid ? (
                 <line
                   key={`axisY_grid${i}`}
-                  x1={left} y1={bottom - pointY} x2={right} y2={bottom - pointY}
+                  x1={left}
+                  y1={bottom - pointY}
+                  x2={right}
+                  y2={bottom - pointY}
                   style={
                     props.axisY.gridStyle || {
                       ...props.axisY.style,
@@ -377,7 +401,11 @@ const LineChart = (props: LineChartProps) => {
               return (
                 <line
                   key={`discreteY_pt${i}`}
-                  x1={left} y1={y} x2={right} y2={y} style={l.lineStyle || {}}
+                  x1={left}
+                  y1={y}
+                  x2={right}
+                  y2={y}
+                  style={l.lineStyle || {}}
                 />
               );
             })}
@@ -417,7 +445,10 @@ const LineChart = (props: LineChartProps) => {
             <>
               <line
                 key={`axisY_pt${i}`}
-                x1={left - 3} y1={bottom - pointY} x2={left} y2={bottom - pointY}
+                x1={left - 3}
+                y1={bottom - pointY}
+                x2={left}
+                y2={bottom - pointY}
                 style={props.axisY.style || {}}
               />
               {text}
@@ -425,7 +456,11 @@ const LineChart = (props: LineChartProps) => {
           );
         })}
         <line
-          key="axisY" x1={left} y1={top} x2={left} y2={bottom} 
+          key="axisY"
+          x1={left}
+          y1={top}
+          x2={left}
+          y2={bottom}
           style={props.axisY.style || {}}
         />
       </>
@@ -439,7 +474,10 @@ const LineChart = (props: LineChartProps) => {
         return props.axisX.grid ? (
           <line
             key={`axisX_pt${idx}`}
-            x1={pointX} y1={bottom} x2={pointX} y2={top}
+            x1={pointX}
+            y1={bottom}
+            x2={pointX}
+            y2={top}
             style={
               props.axisX.gridStyle || {
                 ...props.axisX.style,
@@ -482,7 +520,10 @@ const LineChart = (props: LineChartProps) => {
           <>
             <line
               key={`axisX_pt${i}`}
-              x1={pointX} y1={bottom} x2={pointX} y2={bottom + 3}
+              x1={pointX}
+              y1={bottom}
+              x2={pointX}
+              y2={bottom + 3}
               style={props.axisX.style || {}}
             />
             {text}
@@ -491,7 +532,10 @@ const LineChart = (props: LineChartProps) => {
       })}
       <line
         key="axisX"
-        x1={left} y1={bottom} x2={right} y2={bottom}
+        x1={left}
+        y1={bottom}
+        x2={right}
+        y2={bottom}
         style={props.axisX.style || {}}
       />
     </>
@@ -512,122 +556,135 @@ const LineChart = (props: LineChartProps) => {
     return 1;
   };
 
-  const svgHint = shouldRender && hint ? (
-    <>
-      <circle
-        key={`hint_circle`}
-        cx={hint.plot.x} cy={hint.plot.y} r={5}
-        stroke={hint.ds.lineStyle?.stroke || "white"}
-        strokeWidth={1} fill="white"
-        onTouchEnd={(e) => handlePlot(hint.ds, hint.plot, false)}
-        onClick={(e) => handlePlot(hint.ds, hint.plot, true)}
-      />
-      <text
-        key="hint_text1"
-        textAnchor={
-          hint.plot.x < width / 8
-            ? "start"
-            : hint.plot.x > (width * 7) / 8
-            ? "end"
-            : "middle"
-        }
-        dominantBaseline="middle"
-        x={hint.plot.x}
-        y={
-          hint.plot.y +
-          (hint.plot.y > height / 2
-            ? hintTextHeight * -3 : hintTextHeight)
-        }
-        style={props.hintTextStyle || {}}
-      >
-        {`${hint.ds.label || ""}`}
-      </text>
-      <text
-        key="hint_text2"
-        textAnchor={
-          hint.plot.x < width / 8
-            ? "start"
-            : hint.plot.x > (width * 7) / 8
-            ? "end"
-            : "middle"
-        }
-        dominantBaseline="middle"
-        x={hint.plot.x}
-        y={
-          hint.plot.y +
-          (hint.plot.y > height / 2
-            ? -2 * hintTextHeight : 2 * hintTextHeight)
-        }
-        style={props.hintTextStyle || {}}
-      >
-        {props.axisY.formatValue(hint.plot.price.y)}
-      </text>
-      <text
-        key="hint_text3"
-        textAnchor={
-          hint.plot.x < width / 8
-            ? "start"
-            : hint.plot.x > (width * 7) / 8
-            ? "end"
-            : "middle"
-        }
-        dominantBaseline="middle"
-        x={hint.plot.x}
-        y={
-          hint.plot.y +
-          (hint.plot.y > height / 2
-            ? -hintTextHeight : hintTextHeight * 3)
-        }
-        style={props.hintTextStyle || {}}
-      >
-        {props.axisX.formatValue(hint.plot.price.x)}{" "}
-      </text>
-    </>
-  ) : null;
+  const svgHint =
+    shouldRender && hint ? (
+      <>
+        <circle
+          key={`hint_circle`}
+          cx={hint.plot.x}
+          cy={hint.plot.y}
+          r={5}
+          stroke={hint.ds.lineStyle?.stroke || "white"}
+          strokeWidth={1}
+          fill="white"
+          onTouchEnd={(e) => handlePlot(hint.ds, hint.plot, false)}
+          onClick={(e) => handlePlot(hint.ds, hint.plot, true)}
+        />
+        <text
+          key="hint_text1"
+          textAnchor={
+            hint.plot.x < width / 8
+              ? "start"
+              : hint.plot.x > (width * 7) / 8
+              ? "end"
+              : "middle"
+          }
+          dominantBaseline="middle"
+          x={hint.plot.x}
+          y={
+            hint.plot.y +
+            (hint.plot.y > height / 2 ? hintTextHeight * -3 : hintTextHeight)
+          }
+          style={props.hintTextStyle || {}}
+        >
+          {`${hint.ds.label || ""}`}
+        </text>
+        <text
+          key="hint_text2"
+          textAnchor={
+            hint.plot.x < width / 8
+              ? "start"
+              : hint.plot.x > (width * 7) / 8
+              ? "end"
+              : "middle"
+          }
+          dominantBaseline="middle"
+          x={hint.plot.x}
+          y={
+            hint.plot.y +
+            (hint.plot.y > height / 2
+              ? -2 * hintTextHeight
+              : 2 * hintTextHeight)
+          }
+          style={props.hintTextStyle || {}}
+        >
+          {props.axisY.formatValue(hint.plot.price.y)}
+        </text>
+        <text
+          key="hint_text3"
+          textAnchor={
+            hint.plot.x < width / 8
+              ? "start"
+              : hint.plot.x > (width * 7) / 8
+              ? "end"
+              : "middle"
+          }
+          dominantBaseline="middle"
+          x={hint.plot.x}
+          y={
+            hint.plot.y +
+            (hint.plot.y > height / 2 ? -hintTextHeight : hintTextHeight * 3)
+          }
+          style={props.hintTextStyle || {}}
+        >
+          {props.axisX.formatValue(hint.plot.price.x)}{" "}
+        </text>
+      </>
+    ) : null;
 
-  const svgLineCharts = shouldRender && charts ? (
-    <>
-      {" "}
-      {charts.map((ch, chIdx) => {
-        return ch.plots.map((plot, idx) => {
-          const dotStroke = ch.series.lineStyle?.stroke || "white";
-          return idx < ch.plots.length - 1 ? (
-            <>
-              <line
-                key={`lx_${chIdx}_${idx}`}
-                x1={plot.x} y1={plot.y}
-                x2={ch.plots[idx + 1].x}
-                y2={ch.plots[idx + 1].y}
-                style={ch.series.lineStyle}
-              />
-              <circle
-                key={`plot_${chIdx}_${plot.x}_${plot.y}`}
-                cx={plot.x} cy={plot.y} r={3} stroke={dotStroke}
-                strokeWidth={2} fill="black"
-                onTouchEnd={(e) =>
-                  handlePlot(charts[chIdx].series, plot, false)
-                }
-                onClick={(e) => handlePlot(charts[chIdx].series, plot, true)}
-              />
-              {idx == ch.plots.length - 2 ? (
-                <circle
-                  key={`plot_${chIdx}_last`}
-                  cx={ch.plots[idx + 1].x} cy={ch.plots[idx + 1].y}
-                  r={3} stroke={dotStroke} strokeWidth={2} fill="black"
-                  onTouchEnd={(e) =>
-                    handlePlot(charts[chIdx].series, ch.plots[idx + 1], false)
-                  }
-                  onClick={(e) =>
-                    handlePlot(charts[chIdx].series, ch.plots[idx + 1], true)
-                  }
+  const svgLineCharts =
+    shouldRender && charts ? (
+      <>
+        {" "}
+        {charts.map((ch, chIdx) => {
+          return ch.plots.map((plot, idx) => {
+            const dotStroke = ch.series.lineStyle?.stroke || "white";
+            return idx < ch.plots.length - 1 ? (
+              <>
+                <line
+                  key={`lx_${chIdx}_${idx}`}
+                  x1={plot.x}
+                  y1={plot.y}
+                  x2={ch.plots[idx + 1].x}
+                  y2={ch.plots[idx + 1].y}
+                  style={ch.series.lineStyle}
                 />
-              ) : null}
-            </>
-          ) : null;
-        });
-      })}
-    </>
-  ) : null;
+                <circle
+                  key={`plot_${chIdx}_${plot.x}_${plot.y}`}
+                  cx={plot.x}
+                  cy={plot.y}
+                  r={3}
+                  stroke={dotStroke}
+                  strokeWidth={2}
+                  fill="black"
+                  onTouchEnd={(e) =>
+                    handlePlot(charts[chIdx].series, plot, false)
+                  }
+                  onClick={(e) => handlePlot(charts[chIdx].series, plot, true)}
+                />
+                {idx == ch.plots.length - 2 ? (
+                  <circle
+                    key={`plot_${chIdx}_last`}
+                    cx={ch.plots[idx + 1].x}
+                    cy={ch.plots[idx + 1].y}
+                    r={3}
+                    stroke={dotStroke}
+                    strokeWidth={2}
+                    fill="black"
+                    onTouchEnd={(e) =>
+                      handlePlot(charts[chIdx].series, ch.plots[idx + 1], false)
+                    }
+                    onClick={(e) =>
+                      handlePlot(charts[chIdx].series, ch.plots[idx + 1], true)
+                    }
+                  />
+                ) : null}
+              </>
+            ) : null;
+          });
+        })}
+      </>
+    ) : null;
 
   return (
     <div ref={ref}>

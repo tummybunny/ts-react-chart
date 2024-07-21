@@ -146,8 +146,8 @@ const Example = () => {
       height={200}
       maxValue={8.5}
       minValue={4}
-      maxValueExtraPct={0}
-      minValueExtraPct={0}
+      maxValueExtraPct={5}
+      minValueExtraPct={5}
       axisX={axisX}
       axisY={axisY}
       allSeries={allSeries}
