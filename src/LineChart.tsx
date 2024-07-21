@@ -572,7 +572,7 @@ const LineChart = (props: ChartProps) => {
           onTouchEnd={(e) => handlePlot(hint.ds, hint.plot, false)}
           onClick={(e) => handlePlot(hint.ds, hint.plot, true)}
         />
-        {props.showHint || false ? (
+        {props.showHint === undefined || props.showHint == true ? (
           <>
             <text
               key="hint_text1"
