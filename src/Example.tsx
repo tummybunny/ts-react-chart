@@ -104,7 +104,7 @@ const axisX: Axis = {
   markings: 5,
   markingPosXPosition: "middle",
   markingPosYPosition: "middle",
-  markingPosX: 0,
+  markingPosX: -10,
   markingPosY: 17,
   markingTextStyle: { fill: "white", font: "12px verdana" },
   grid: true,
@@ -143,7 +143,7 @@ const Example = () => {
       marginBottom={30}
       marginLeft={40}
       marginRight={25}
-      height={200}
+      height={250}
       maxValue={8.5}
       minValue={4}
       maxValueExtraPct={5}
