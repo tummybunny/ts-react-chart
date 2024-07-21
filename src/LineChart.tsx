@@ -234,7 +234,11 @@ function normalize<P extends DataPoint>(
             strat === "same-start"
               ? { ...lastPoint, x, y: lastPoint.y - firstY }
               : strat === "performance"
-              ? { ...lastPoint, x, y: Math.round((100 * lastPoint.y) / firstY) / 100 }
+              ? {
+                  ...lastPoint,
+                  x,
+                  y: Math.round((100 * lastPoint.y) / firstY) / 100,
+                }
               : { ...lastPoint, x, y: lastPoint.y };
           result[idx].normalizedDataset.push(clone);
           break;
@@ -549,9 +553,7 @@ const LineChart = (props: ChartProps) => {
     const touchDevice = isTouchDevice();
     if ((touchDevice && mouseEvent) || (!touchDevice && !mouseEvent)) return 1;
 
-    if (props.showHint == undefined || props.showHint) {
-      setHint((h) => (h?.plot == plot ? undefined : { ds, plot }));
-    }
+    setHint((h) => (h?.plot == plot ? undefined : { ds, plot }));
     props.onDataPointSelected && props.onDataPointSelected(ds.id, plot.price);
     return 1;
   };
@@ -570,65 +572,73 @@ const LineChart = (props: ChartProps) => {
           onTouchEnd={(e) => handlePlot(hint.ds, hint.plot, false)}
           onClick={(e) => handlePlot(hint.ds, hint.plot, true)}
         />
-        <text
-          key="hint_text1"
-          textAnchor={
-            hint.plot.x < width / 8
-              ? "start"
-              : hint.plot.x > (width * 7) / 8
-              ? "end"
-              : "middle"
-          }
-          dominantBaseline="middle"
-          x={hint.plot.x}
-          y={
-            hint.plot.y +
-            (hint.plot.y > height / 2 ? hintTextHeight * -3 : hintTextHeight)
-          }
-          style={props.hintTextStyle || {}}
-        >
-          {`${hint.ds.label || ""}`}
-        </text>
-        <text
-          key="hint_text2"
-          textAnchor={
-            hint.plot.x < width / 8
-              ? "start"
-              : hint.plot.x > (width * 7) / 8
-              ? "end"
-              : "middle"
-          }
-          dominantBaseline="middle"
-          x={hint.plot.x}
-          y={
-            hint.plot.y +
-            (hint.plot.y > height / 2
-              ? -2 * hintTextHeight
-              : 2 * hintTextHeight)
-          }
-          style={props.hintTextStyle || {}}
-        >
-          {props.axisY.formatValue(hint.plot.price.y)}
-        </text>
-        <text
-          key="hint_text3"
-          textAnchor={
-            hint.plot.x < width / 8
-              ? "start"
-              : hint.plot.x > (width * 7) / 8
-              ? "end"
-              : "middle"
-          }
-          dominantBaseline="middle"
-          x={hint.plot.x}
-          y={
-            hint.plot.y +
-            (hint.plot.y > height / 2 ? -hintTextHeight : hintTextHeight * 3)
-          }
-          style={props.hintTextStyle || {}}
-        >
-          {props.axisX.formatValue(hint.plot.price.x)}{" "}
-        </text>
+        {props.showHint || false ? (
+          <>
+            <text
+              key="hint_text1"
+              textAnchor={
+                hint.plot.x < width / 8
+                  ? "start"
+                  : hint.plot.x > (width * 7) / 8
+                  ? "end"
+                  : "middle"
+              }
+              dominantBaseline="middle"
+              x={hint.plot.x}
+              y={
+                hint.plot.y +
+                (hint.plot.y > height / 2
+                  ? hintTextHeight * -3
+                  : hintTextHeight)
+              }
+              style={props.hintTextStyle || {}}
+            >
+              {`${hint.ds.label || ""}`}
+            </text>
+            <text
+              key="hint_text2"
+              textAnchor={
+                hint.plot.x < width / 8
+                  ? "start"
+                  : hint.plot.x > (width * 7) / 8
+                  ? "end"
+                  : "middle"
+              }
+              dominantBaseline="middle"
+              x={hint.plot.x}
+              y={
+                hint.plot.y +
+                (hint.plot.y > height / 2
+                  ? -2 * hintTextHeight
+                  : 2 * hintTextHeight)
+              }
+              style={props.hintTextStyle || {}}
+            >
+              {props.axisY.formatValue(hint.plot.price.y)}
+            </text>
+            <text
+              key="hint_text3"
+              textAnchor={
+                hint.plot.x < width / 8
+                  ? "start"
+                  : hint.plot.x > (width * 7) / 8
+                  ? "end"
+                  : "middle"
+              }
+              dominantBaseline="middle"
+              x={hint.plot.x}
+              y={
+                hint.plot.y +
+                (hint.plot.y > height / 2
+                  ? -hintTextHeight
+                  : hintTextHeight * 3)
+              }
+              style={props.hintTextStyle || {}}
+            >
+              {props.axisX.formatValue(hint.plot.price.x)}{" "}
+            </text>
+          </>
+        ) : null}
       </>
     ) : null;
 
