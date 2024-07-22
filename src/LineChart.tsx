@@ -274,7 +274,7 @@ function calcLayout<P extends DataPoint>(
     );
   });
 
-  let deltaV = maxV && minV ? maxV - minV : undefined;
+  let deltaV = maxV && minV ? ((maxV - minV) || 1) : undefined;
 
   minV =
     deltaV && props.minValueExtraPct
