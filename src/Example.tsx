@@ -49,7 +49,7 @@ const series1: Series = {
     { x: 20240621, y: 4.9 },
     { x: 20240628, y: 6.9 },
   ],
-  lineStyle: { stroke: "red", strokeWidth: "3px", strokeDasharray: "5 5", },
+  lineStyle: { stroke: "red", strokeWidth: "3px", strokeDasharray: "5 5" },
   label: "tomato",
   id: "tomato",
 };
@@ -126,11 +126,19 @@ const axisY: Axis = {
   discreteLines: [
     {
       value: 8,
-      lineStyle: { stroke: "#603030", strokeWidth: "2px", strokeDasharray: "4 2", },
+      lineStyle: {
+        stroke: "#603030",
+        strokeWidth: "2px",
+        strokeDasharray: "4 2",
+      },
     },
     {
       value: 5.5,
-      lineStyle: { stroke: "#306030", strokeWidth: "2px", strokeDasharray: "4 2", },
+      lineStyle: {
+        stroke: "#306030",
+        strokeWidth: "2px",
+        strokeDasharray: "4 2",
+      },
     },
   ],
   formatValue: (n: number) => round2dp(n).toString(),
@@ -154,9 +162,25 @@ const Example = () => {
       allSeries={allSeries}
       hintTextHeight={18}
       hintTextStyle={{ fill: "white", font: "12px verdana" }}
-      onDataPointSelected={(seriesId, price) =>
-        console.log({ seriesId, price })
-      }
+      onDataPointSelected={(seriesId, price, chart) => {
+        console.log({ seriesId, price });
+
+        // draw vertical dotted line..
+        // or do whatever you want, e.g. draw legends
+        return (
+          <line
+            x1={chart.pointX}
+            y1={chart.top}
+            x2={chart.pointX}
+            y2={chart.bottom}
+            style={{
+              stroke: "white",
+              strokeWidth: "1px",
+              strokeDasharray: "2 10",
+            }}
+          ></line>
+        );
+      }}
     ></LineChart>
   );
 };

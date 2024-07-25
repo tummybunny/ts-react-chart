@@ -1,4 +1,4 @@
-import { CSSProperties, useEffect, useRef, useState } from "react";
+import { CSSProperties, ReactNode, useEffect, useRef, useState } from "react";
 
 const maxDiscretePointsAxisX = 255;
 const maxDiscretePointsAxisY = 255;
@@ -81,8 +81,9 @@ export type Axis = {
  */
 export type OnDataPointSelected<P extends DataPoint = DataPoint> = (
   seriesId: string,
-  price: P
-) => void;
+  price: P,
+  point: ChartLayout
+) => ReactNode | undefined | void;
 
 /**
  * Props to LineChart
@@ -137,6 +138,17 @@ export type ChartProps<P extends DataPoint = DataPoint> = {
 
   /** Callback when DataPoint selected */
   onDataPointSelected?: OnDataPointSelected<P>;
+};
+
+export type ChartLayout = {
+  pointX: number;
+  pointY: number;
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+  width: number;
+  height: number;
 };
 
 function calcMinMax<P extends DataPoint>(
@@ -228,7 +240,7 @@ function normalize<P extends DataPoint>(
             result[idx].normalizedDataset.push(clone);
             break;
           }
-        } else if (lastPoint) {
+        } else if (lastPoint && result[idx].normalizedDataset.length) {
           const clone =
             strat === "same-start"
               ? { ...lastPoint, x, y: lastPoint.y - firstY }
@@ -274,7 +286,7 @@ function calcLayout<P extends DataPoint>(
     );
   });
 
-  let deltaV = maxV && minV ? ((maxV - minV) || 1) : undefined;
+  let deltaV = maxV && minV ? maxV - minV || 1 : undefined;
 
   minV =
     deltaV && props.minValueExtraPct
@@ -316,9 +328,11 @@ function isTouchDevice() {
  */
 const LineChart = (props: ChartProps) => {
   const ref = useRef<HTMLDivElement | null>(null);
-  const prev = useRef<string>("");
   const [width, setWidth] = useState(props.width || 100);
   const [hint, setHint] = useState<Hint<DataPoint> | undefined>(undefined);
+  const [hintReactNode, setHintReactNode] = useState<ReactNode | undefined>(
+    undefined
+  );
 
   useEffect(() => {
     if (!props.width || props.width < 1) {
@@ -373,6 +387,19 @@ const LineChart = (props: ChartProps) => {
       : undefined;
 
   const shouldRender = charts && charts.length;
+
+  /*
+  console.log({
+    minV,
+    maxV,
+    discretePointsAxisX,
+    discretePointsAxisY,
+    discreteGapX,
+    discreteGapY,
+    deltaV,
+    charts
+  });
+  */
 
   const svgAxisBackY =
     shouldRender && deltaV ? (
@@ -555,22 +582,39 @@ const LineChart = (props: ChartProps) => {
     const touchDevice = isTouchDevice();
     if ((touchDevice && mouseEvent) || (!touchDevice && !mouseEvent)) return 1;
 
-    setHint((h) => (h?.plot == plot ? undefined : { ds, plot }));
-    props.onDataPointSelected && props.onDataPointSelected(ds.id, plot.price);
+    setHint((oldHint) => {
+      const h = oldHint?.plot == plot ? undefined : { ds, plot };
+      if (h) {
+        let rNode: ReactNode | undefined | void;
+        if (props.onDataPointSelected) {
+          const layout = {
+            left,
+            right,
+            top,
+            bottom,
+            width,
+            height,
+            pointX: plot.x,
+            pointY: plot.y,
+          };
+          rNode = props.onDataPointSelected(ds.id, plot.price, layout);
+        }
+
+        console.log({ ds, plot });
+        rNode && setHintReactNode(rNode);
+      } else {
+        setHintReactNode(undefined);
+      }
+
+      return h;
+    });
+
     return 1;
   };
 
   const svgHint =
     shouldRender && hint ? (
       <>
-        <line
-          key={`hint_vline`}
-          x1={hint.plot.x}
-          y1={top}
-          x2={hint.plot.x}
-          y2={bottom}
-          style={{ stroke: hint.ds.lineStyle?.stroke || "white", strokeWidth: "1px", strokeDasharray: "2 5", }}
-        ></line>
         <circle
           key={`hint_circle`}
           cx={hint.plot.x}
@@ -717,6 +761,7 @@ const LineChart = (props: ChartProps) => {
           {svgAxisFrontY}
           {svgAxisFrontX}
           {svgHint}
+          {hintReactNode}
         </svg>
       ) : null}
     </div>
