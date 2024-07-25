@@ -322,9 +322,11 @@ const LineChart = (props: ChartProps) => {
 
   useEffect(() => {
     if (!props.width || props.width < 1) {
-      ref.current?.clientWidth && setWidth(ref.current?.clientWidth);
+      if (ref.current?.clientWidth && ref.current?.clientWidth != width) {
+        setWidth(ref.current?.clientWidth);
+      }
     }
-  }, []);
+  }, [props]);
 
   const left = props.marginLeft || 10;
   const right = width - (props.marginRight || 10);
