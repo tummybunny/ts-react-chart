@@ -370,7 +370,7 @@ const LineChart = (props: ChartProps) => {
             const idx =
               discretePointsAxisX === ds.length
                 ? i
-                : Math.round((ds.length / discretePointsAxisX) * i);
+                : Math.round(((ds.length / discretePointsAxisX) * (i + 1)) - 1);
             const p = ds[idx];
             const pos = p.x;
             const value = p.y;
